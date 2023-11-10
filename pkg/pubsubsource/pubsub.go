@@ -40,7 +40,6 @@ func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription) *
 func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest, messageCh chan<- sourcesdk.Message) {
 	log.Println("Read called")
 	if len(p.messages) > 0 {
-		log.Println("Gets executed")
 		return
 	}
 	log.Println("Request timeout", readRequest.TimeOut())

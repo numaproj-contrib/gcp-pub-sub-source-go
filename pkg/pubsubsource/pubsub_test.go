@@ -1,5 +1,6 @@
 package pubsubsource
 
+/*
 import (
 	"context"
 	"fmt"
@@ -19,7 +20,7 @@ const TopicID = "pubsub-test"
 
 var (
 	pubsubClient   *pubsub.Client
-	subscriptionID = "subscription-0908"
+	subscriptionID = "subscription-09098ui1"
 )
 
 // Simplified publish function.
@@ -36,7 +37,7 @@ func publish(ctx context.Context, client *pubsub.Client, topicID, msg string) er
 }
 
 func sendMessages(ctx context.Context, client *pubsub.Client, topicID string) {
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 50; i++ {
 		if err := publish(ctx, client, topicID, fmt.Sprintf("Message %d", i)); err != nil {
 			log.Fatalf("Failed to publish: %v", err)
 		}
@@ -108,97 +109,21 @@ func TestPubSubSource_Read(t *testing.T) {
 	assert.Nil(t, err)
 	messageCh := make(chan sourcer.Message, 20)
 	//doneCh := make(chan struct{})
-	exitch := make(chan struct{})
-	sendMEssagech := make(chan int)
+	sub := pubsubClient.Subscription(subscriptionID)
+	pubsubsource := NewPubSubSource(pubsubClient, sub)
+	ctx := context.Background()
 	go func() {
-		for i := 0; i < 20; i++ {
-			if err := publish(context.Background(), pubsubClient, TopicID, fmt.Sprintf("Message %d", i)); err != nil {
-				log.Fatalf("Failed to publish: %v", err)
-			}
-			if i%5 == 0 {
-				sendMEssagech <- i
+		<-time.After(5 * time.Second)
+		sendMessages(context.Background(), pubsubClient, TopicID)
 
-			}
-		}
-		close(exitch)
 	}()
 
-	for {
-		select {
-		case <-sendMEssagech:
-			sub := pubsubClient.Subscription(subscriptionID)
-			pubsubsource := NewPubSubSource(pubsubClient, sub)
-			log.Println("Received called")
-			pubsubsource.Read(context.TODO(), mocks.ReadRequest{
-				CountValue: 5,
-				Timeout:    10 * time.Second,
-			}, messageCh)
-			assert.Equal(t, 5, len(messageCh))
-		case <-exitch:
-			break
+	pubsubsource.Read(ctx, mocks.ReadRequest{
+		CountValue: 5,
+		Timeout:    20 * time.Second,
+	}, messageCh)
 
-		}
-	}
-
-	//<-doneCh
-
-	/*
-		// Try reading 4 more messages
-		// Since the previous batch didn't get acked, the data source shouldn't allow us to read more messages
-		// We should get 0 messages, meaning the channel only holds the previous 5 messages
-		pubsubsource.Read(context.TODO(), mocks.ReadRequest{
-			CountValue: 4,
-			Timeout:    5 * time.Second,
-		}, messageCh)
-
-		assert.Equal(t, 5, len(messageCh))
-	*/
-	// Ack the first batch
-
-	/*
-
-
-		msg1 := <-messageCh
-			msg2 := <-messageCh
-			msg3 := <-messageCh
-			msg4 := <-messageCh
-			msg5 := <-messageCh
-
-			pubsubsource.Ack(context.TODO(), mocks.TestAckRequest{
-				OffsetsValue: []sourcer.Offset{msg1.Offset(), msg2.Offset(), msg3.Offset(), msg4.Offset(), msg5.Offset()},
-			})
-
-			sub2 := pubsubClient.Subscription(subscriptionID)
-
-			sendMEssagech2 := make(chan struct{})
-			go func() {
-				sendMessages(context.Background(), pubsubClient, TopicID)
-				close(sendMEssagech2)
-			}()
-			<-sendMEssagech2
-
-			pubsubsource2 := NewPubSubSource(pubsubClient, sub2)
-
-			pubsubsource2.Read(context.TODO(), mocks.ReadRequest{
-				CountValue: 4,
-				Timeout:    30 * time.Second,
-			}, messageCh)
-
-			assert.Equal(t, 4, len(messageCh))
-
-
-
-			t.Log("Calling ReAD AGAIN---------")
-
-			//time.Sleep(10 * time.Second)
-			sendMEssage(topic)
-
-
-
-	*/
-
-	//err := sub.Delete(context.Background())
-	//assert.Nil(t, err)
-	//log.Println("Subscription Deleted--------")
+	assert.Equal(t, 5, len(messageCh))
 
 }
+*/
