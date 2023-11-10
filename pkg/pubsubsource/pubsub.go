@@ -18,9 +18,9 @@ package pubsubsource
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"cloud.google.com/go/pubsub"
 	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
@@ -38,39 +38,21 @@ func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription) *
 }
 
 func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest, messageCh chan<- sourcesdk.Message) {
+	log.Println("Read called")
 	if len(p.messages) > 0 {
+		log.Println("Gets executed")
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), readRequest.TimeOut())
+	log.Println("Request timeout", readRequest.TimeOut())
+	ctx, cancelFunc := context.WithTimeout(context.Background(), readRequest.TimeOut())
+	defer cancelFunc()
+	cctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	ctx2, cancel2 := context.WithCancel(ctx)
-	receiveMesg := make(chan *pubsub.Message)
-	messageCount := 0
 	p.subscription.ReceiveSettings.MaxOutstandingMessages = int(readRequest.Count())
-	go p.subscription.Receive(ctx2, func(_ context.Context, msg *pubsub.Message) {
-		fmt.Printf("Got message------------------: %s\n", string(msg.Data))
-		receiveMesg <- msg
-		p.lock.Lock()
-		messageCount++
-		p.lock.Unlock()
-	})
-	for {
-		log.Println(messageCount)
-		if uint64(messageCount) == readRequest.Count() {
-			log.Println("Total Messages Read ------------************************")
-			cancel2()
-			return
-		}
-		select {
-		case <-ctx.Done():
-			log.Println("Timeout done ------------************************")
-			cancel2()
-			return
-
-		case msg := <-receiveMesg:
-			log.Println("Executing Loop--------")
-
+	p.subscription.ReceiveSettings.MaxExtensionPeriod = 4 * time.Minute
+	go func() {
+		err := p.subscription.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
+			log.Printf("Got message------------------: %s,count - %d", string(msg.Data), readRequest.Count())
 			p.lock.Lock()
 			messageCh <- sourcesdk.NewMessage(
 				msg.Data,
@@ -79,9 +61,19 @@ func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest
 			)
 			p.messages[msg.ID] = msg
 			p.lock.Unlock()
+		})
+		if err != nil {
+			log.Fatalf("Error--%s", err)
+			return
+		}
 
-		default:
-			continue
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			cancel()
+			return
 
 		}
 

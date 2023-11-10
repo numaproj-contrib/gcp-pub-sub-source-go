@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -46,40 +47,44 @@ func createTopicIfNotExists(c *pubsub.Client, topic string) *pubsub.Topic {
 }
 
 func main() {
+	const id = "my-sub"
 	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, "local-project")
+	client, err := pubsub.NewClient(ctx, "just-ratio-366415")
 	defer client.Close()
 
 	if err != nil {
 		log.Fatalf("pubsub.NewClient: %s", err)
 	}
 	//id := fmt.Sprintf("my-sub-%d", rand.Int())
-	/*
-		sub_, err := client.CreateSubscription(ctx, id, pubsub.SubscriptionConfig{
-			Topic: createTopicIfNotExists(client, "my-topic-5"),
-		})
 
-		if err != nil {
-			log.Fatalf("error creating subscription: %s", err)
-		}
-		fmt.Printf("Created subscription: %v\n", sub_)
+	sub_, err := client.CreateSubscription(ctx, id, pubsub.SubscriptionConfig{
+		Topic: createTopicIfNotExists(client, "my-topic-5"),
+	})
 
-	*/
-	sub := client.Subscription("my-sub-4879843889150859861")
+	if err != nil {
+		log.Fatalf("error creating subscription: %s", err)
+	}
+	fmt.Printf("Created subscription: %v\n", sub_)
 
 	readRequest := &mocks.ReadRequest{
 		CountValue: 50,
-		Timeout:    10 * time.Second,
+		Timeout:    20 * time.Second,
 	}
 	messageChan := make(chan sourcer.Message, 20)
-	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub)
+
+	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub_)
 	googlePubSubSource.Read(context.Background(), readRequest, messageChan)
+	/*
+		googlePubSubSource.Ack(context.Background(), mocks.TestAckRequest{OffsetsValue: make([]sourcer.Offset, 0)})
 
-	googlePubSubSource.Ack(context.Background(), mocks.TestAckRequest{OffsetsValue: make([]sourcer.Offset, 0)})
+		log.Println("Acknowledge Done----------&&&&&&&&&&&&&&&&&&&&&&&&&")
+		googlePubSubSource.Read(context.Background(), readRequest, messageChan)
 
-	log.Println("Acknowledge Done----------&&&&&&&&&&&&&&&&&&&&&&&&&")
-	googlePubSubSource.Read(context.Background(), readRequest, messageChan)
+		if err := sub_.Delete(ctx); err != nil {
+			log.Fatalf("error deleting subscription: %s", err)
+		}
 
+	*/
 	/*
 		err = sourcer.NewServer(googlePubSubSource).Start(context.Background())
 		if err != nil {
