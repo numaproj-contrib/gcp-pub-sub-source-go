@@ -3,123 +3,106 @@ package pubsubsource
 import (
 	"context"
 	"fmt"
+	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/mocks"
+	"github.com/numaproj/numaflow-go/pkg/sourcer"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/numaproj/numaflow-go/pkg/sourcer"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/mocks"
 )
 
-const Topic = "pubsub-test"
+const TopicID = "pubsub-test"
 
-var id = "subscription-0908"
+var (
+	pubsubClient   *pubsub.Client
+	subscriptionID = "subscription-0908"
+)
 
-var pubsubclient *pubsub.Client
-
-func publish(client *pubsub.Client, topicID, msg string) error {
-
+// Simplified publish function.
+func publish(ctx context.Context, client *pubsub.Client, topicID, msg string) error {
 	t := client.Topic(topicID)
-	result := t.Publish(context.Background(), &pubsub.Message{
-		Data: []byte(msg),
-	})
-	// Block until the result is returned and a server-generated
-	// ID is returned for the published message.
-	id, err := result.Get(context.TODO())
+	result := t.Publish(ctx, &pubsub.Message{Data: []byte(msg)})
+	// Block until the result is returned.
+	id, err := result.Get(ctx)
 	if err != nil {
-		log.Fatalf("pubsub: result.Get: %s", err)
+		return fmt.Errorf("pubsub: result.Get: %w", err)
 	}
 	fmt.Printf("Published a message; msg ID: %s\n", id)
 	return nil
 }
 
-func sendMEssage() {
-
+func sendMessages(ctx context.Context, client *pubsub.Client, topicID string) {
 	for i := 0; i < 20; i++ {
-		publish(pubsubclient, Topic, "Some Random MEssage")
-	}
-
-}
-func createTopicIfNotExists(c *pubsub.Client, topic string) *pubsub.Topic {
-	ctx := context.Background()
-	t := c.Topic(topic)
-	ok, err := t.Exists(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if ok {
-		return t
-	}
-	t, err = c.CreateTopic(ctx, topic)
-
-	if err != nil {
-		log.Fatalf("Failed to create the topic: %v", err)
-	}
-	return t
-}
-
-func createSubscription(client *pubsub.Client, id string) {
-	//check if the subscription already exists
-	log.Println("Creating subscription----------------*****")
-	sub := client.Subscription(id)
-	exists, err := sub.Exists(context.Background())
-	if err != nil {
-		log.Fatalf("failed to check if  the susbcription exists: %v", err)
-
-	}
-	log.Println(exists)
-	if !exists {
-		sub_, err := client.CreateSubscription(context.Background(), id, pubsub.SubscriptionConfig{
-			Topic: createTopicIfNotExists(client, "my-topic-5"),
-		})
-		if err != nil {
-			log.Fatalf("Failed to create the susbcription: %v", err)
-
+		if err := publish(ctx, client, topicID, fmt.Sprintf("Message %d", i)); err != nil {
+			log.Fatalf("Failed to publish: %v", err)
 		}
-		log.Println("New Subscription  Created ---------", sub_)
-		// Call send message to send the message to new subscription
-
 	}
-	log.Println("New Subscription  Created ---------")
+}
 
+func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topicID, subID string) {
+	// Ensure topic exists.
+	topic := client.Topic(topicID)
+	exists, err := topic.Exists(ctx)
+	if err != nil {
+		log.Fatalf("Failed to check if topic exists: %v", err)
+	}
+	if !exists {
+		if _, err = client.CreateTopic(ctx, topicID); err != nil {
+			log.Fatalf("Failed to create the topic: %v", err)
+		}
+	}
+
+	// Ensure subscription exists.
+	sub := client.Subscription(subID)
+	exists, err = sub.Exists(ctx)
+	if err != nil {
+		log.Fatalf("Failed to check if the subscription exists: %v", err)
+	}
+	if !exists {
+		if _, err = client.CreateSubscription(ctx, subID, pubsub.SubscriptionConfig{Topic: topic}); err != nil {
+			log.Fatalf("Failed to create the subscription: %v", err)
+		}
+	}
 }
 
 func TestMain(m *testing.M) {
-	err := os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8085")
+	os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8085")
+
 	ctx := context.Background()
-	log.Println("Main executed")
+
 	// Sets your Google Cloud Platform project ID.
 	projectID := "just-ratio-366415"
 
 	// Creates a client.
-	client, err := pubsub.NewClient(ctx, projectID)
+	var err error
+	pubsubClient, err = pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
 	}
-	defer client.Close()
-	pubsubclient = client
-	createTopicIfNotExists(pubsubclient, Topic)
-	createSubscription(pubsubclient, id)
+	defer pubsubClient.Close()
+
+	ensureTopicAndSubscription(ctx, pubsubClient, TopicID, subscriptionID)
 
 	code := m.Run()
 	os.Exit(code)
-
 }
+
+// Additional test functions go here.
+
 func TestPubSubSource_Read(t *testing.T) {
 
 	messageCh := make(chan sourcer.Message, 20)
 	//doneCh := make(chan struct{})
 
-	sub := pubsubclient.Subscription(id)
-	pubsubsource := NewPubSubSource(pubsubclient, sub)
+	sub := pubsubClient.Subscription(TopicID)
+	pubsubsource := NewPubSubSource(pubsubClient, sub)
 
 	sendMEssagech := make(chan struct{})
 	go func() {
-		sendMEssage()
+		sendMessages(context.Background(), pubsubClient, TopicID)
 		close(sendMEssagech)
 	}()
 	<-sendMEssagech
@@ -153,16 +136,16 @@ func TestPubSubSource_Read(t *testing.T) {
 		OffsetsValue: []sourcer.Offset{msg1.Offset(), msg2.Offset(), msg3.Offset(), msg4.Offset(), msg5.Offset()},
 	})
 
-	sub2 := pubsubclient.Subscription(id)
+	sub2 := pubsubClient.Subscription(TopicID)
 
 	sendMEssagech2 := make(chan struct{})
 	go func() {
-		sendMEssage()
+		sendMessages(context.Background(), pubsubClient, TopicID)
 		close(sendMEssagech2)
 	}()
 	<-sendMEssagech2
 
-	pubsubsource2 := NewPubSubSource(pubsubclient, sub2)
+	pubsubsource2 := NewPubSubSource(pubsubClient, sub2)
 
 	pubsubsource2.Read(context.TODO(), mocks.ReadRequest{
 		CountValue: 4,
