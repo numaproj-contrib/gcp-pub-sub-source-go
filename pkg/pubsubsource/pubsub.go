@@ -38,11 +38,9 @@ func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription) *
 }
 
 func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest, messageCh chan<- sourcesdk.Message) {
-	log.Println("Read called")
 	if len(p.messages) > 0 {
 		return
 	}
-	log.Println("Request timeout", readRequest.TimeOut())
 	ctx, cancelFunc := context.WithTimeout(context.Background(), readRequest.TimeOut())
 	defer cancelFunc()
 	cctx, cancel := context.WithCancel(context.Background())
@@ -51,7 +49,6 @@ func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest
 	p.subscription.ReceiveSettings.MaxExtensionPeriod = 4 * time.Minute
 	go func() {
 		err := p.subscription.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
-			log.Printf("Got message------------------: %s,count - %d", string(msg.Data), readRequest.Count())
 			p.lock.Lock()
 			messageCh <- sourcesdk.NewMessage(
 				msg.Data,
@@ -83,7 +80,6 @@ func (p *PubSubSource) Pending(_ context.Context) int64 {
 	return -1
 }
 func (p *PubSubSource) Ack(_ context.Context, request sourcesdk.AckRequest) {
-	log.Println("Acknowledge called")
 	for _, offset := range request.Offsets() {
 		p.messages[string(offset.Value())].Ack()
 		delete(p.messages, string(offset.Value()))

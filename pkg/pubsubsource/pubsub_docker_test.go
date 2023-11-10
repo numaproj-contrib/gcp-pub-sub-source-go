@@ -48,16 +48,15 @@ func publish(ctx context.Context, client *pubsub.Client, topicID, msg string) er
 	t := client.Topic(topicID)
 	result := t.Publish(ctx, &pubsub.Message{Data: []byte(msg)})
 	// Block until the result is returned.
-	id, err := result.Get(ctx)
+	_, err := result.Get(ctx)
 	if err != nil {
 		return fmt.Errorf("pubsub: result.Get: %w", err)
 	}
-	fmt.Printf("Published a message; msg ID: %s\n", id)
 	return nil
 }
 
-func sendMessages(ctx context.Context, client *pubsub.Client, topicID string) {
-	for i := 0; i < 50; i++ {
+func sendMessages(ctx context.Context, client *pubsub.Client, topicID string, count int) {
+	for i := 0; i < count; i++ {
 		if err := publish(ctx, client, topicID, fmt.Sprintf("Message %d", i)); err != nil {
 			log.Fatalf("Failed to publish: %v", err)
 		}
@@ -88,7 +87,6 @@ func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topi
 
 	}
 	if !exists {
-		log.Println("subscription doesnt exists")
 		if _, err = client.CreateSubscription(ctx, subID, pubsub.SubscriptionConfig{Topic: topic}); err != nil {
 			return err
 
@@ -114,6 +112,7 @@ func TestMain(m *testing.M) {
 	}
 	pubSubRunning := false
 	for _, container := range containers {
+		fmt.Println(container)
 		for _, name := range container.Names {
 			if strings.Contains(name, "google-cloud-cli") {
 				pubSubRunning = true
@@ -128,13 +127,12 @@ func TestMain(m *testing.M) {
 	if !pubSubRunning {
 		// Start goaws container if not already running
 		opts := dockertest.RunOptions{
-			Repository:   "gcr.io/google.com/cloudsdktool/google-cloud-cli",
-			Env:          []string{fmt.Sprintf("project=%s", Project)},
+			Repository:   "thekevjames/gcloud-pubsub-emulator",
 			Tag:          "latest",
-			ExposedPorts: []string{"8085"},
+			ExposedPorts: []string{"8681"},
 			PortBindings: map[docker.Port][]docker.PortBinding{
-				"8085": {
-					{HostIP: "127.0.0.1", HostPort: "8085"},
+				"8681": {
+					{HostIP: "127.0.0.1", HostPort: "8681"},
 				},
 			},
 		}
@@ -145,7 +143,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	err = os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8085")
+	err = os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
 	if err != nil {
 		log.Fatalf("error -%s", err)
 	}
@@ -187,7 +185,7 @@ func TestPubSubSource_Read(t *testing.T) {
 	ctx := context.Background()
 	go func() {
 		<-time.After(5 * time.Second)
-		sendMessages(context.Background(), pubsubClient, TopicID)
+		sendMessages(context.Background(), pubsubClient, TopicID, 5)
 
 	}()
 
@@ -195,7 +193,43 @@ func TestPubSubSource_Read(t *testing.T) {
 		CountValue: 5,
 		Timeout:    20 * time.Second,
 	}, messageCh)
-
 	assert.Equal(t, 5, len(messageCh))
+
+	// Try reading 4 more messages
+	// Since the previous batch didn't get acked, the data source shouldn't allow us to read more messages
+	// We should get 0 messages, meaning the channel only holds the previous 5 messages
+	// Creating a new subscriber
+
+	pubsubsource.Read(ctx, mocks.ReadRequest{
+		CountValue: 4,
+		Timeout:    10 * time.Second,
+	}, messageCh)
+	assert.Equal(t, 5, len(messageCh))
+
+	// Ack the first batch
+	// Acknowledge messages.
+	for i := 0; i < 5; i++ {
+		msg := <-messageCh
+		pubsubsource.Ack(ctx, mocks.TestAckRequest{
+			OffsetsValue: []sourcer.Offset{msg.Offset()},
+		})
+	}
+
+	go func() {
+		<-time.After(5 * time.Second)
+		sendMessages(context.Background(), pubsubClient, TopicID, 6)
+
+	}()
+
+	// Try reading 6 more messages
+	// Since the previous batch got acked, the data source should allow us to read more messages
+	// We should get 6 messages
+	sub2 := pubsubClient.Subscription(subscriptionID)
+	pubsubsource2 := NewPubSubSource(pubsubClient, sub2)
+	pubsubsource2.Read(ctx, mocks.ReadRequest{
+		CountValue: 6,
+		Timeout:    10 * time.Second,
+	}, messageCh)
+	assert.Equal(t, 6, len(messageCh))
 
 }
