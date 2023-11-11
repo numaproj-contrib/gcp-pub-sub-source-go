@@ -1,0 +1,6 @@
+# gcloud-pubsub.yaml is used in E2E testing to create a mocks of Google Pubsub.
+resources:
+  - gcloud-pubsub.yaml
+
+commonLabels:
+  "numaflow-e2e": "true"

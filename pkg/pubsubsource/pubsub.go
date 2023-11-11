@@ -77,6 +77,7 @@ func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest
 }
 
 func (p *PubSubSource) Pending(_ context.Context) int64 {
+	// GCP Pubsub Doesn't provide Any api to get the number of available messages
 	return -1
 }
 func (p *PubSubSource) Ack(_ context.Context, request sourcesdk.AckRequest) {

@@ -17,79 +17,60 @@ limitations under the License.
 package main
 
 import (
-	"context"
-	"fmt"
-	"log"
-	"time"
-
 	"cloud.google.com/go/pubsub"
-	"github.com/numaproj/numaflow-go/pkg/sourcer"
-
-	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/mocks"
+	"context"
 	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/pubsubsource"
+	"github.com/numaproj/numaflow-go/pkg/sourcer"
+	"log"
+	"os"
 )
 
-func createTopicIfNotExists(c *pubsub.Client, topic string) *pubsub.Topic {
-	ctx := context.Background()
-	t := c.Topic(topic)
-	ok, err := t.Exists(ctx)
+func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topicID, subID string) (error, *pubsub.Subscription) {
+	topic := client.Topic(topicID)
+	exists, err := topic.Exists(ctx)
 	if err != nil {
-		log.Fatal(err)
+		return err, nil
 	}
-	if ok {
-		return t
+	if !exists {
+		if _, err = client.CreateTopic(ctx, topicID); err != nil {
+			return err, nil
+		}
 	}
-	t, err = c.CreateTopic(ctx, topic)
+
+	topic = client.Topic(topicID)
+	sub := client.Subscription(subID)
+
+	// Check if the subscription exists, create it if it doesn't.
+	exists, err = sub.Exists(ctx)
 	if err != nil {
-		log.Fatalf("Failed to create the topic: %v", err)
+		return err, nil
 	}
-	return t
+	if !exists {
+		if sub, err = client.CreateSubscription(ctx, subID, pubsub.SubscriptionConfig{Topic: topic}); err != nil {
+			return err, nil
+		}
+	}
+
+	return nil, sub
 }
 
 func main() {
-	const id = "my-sub"
 	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, "just-ratio-366415")
+	client, err := pubsub.NewClient(ctx, os.Getenv("PROJECT_ID"))
 	defer client.Close()
 
 	if err != nil {
-		log.Fatalf("pubsub.NewClient: %s", err)
+		log.Fatalf("error in creating pubsub client: %s", err)
 	}
-	//id := fmt.Sprintf("my-sub-%d", rand.Int())
 
-	sub_, err := client.CreateSubscription(ctx, id, pubsub.SubscriptionConfig{
-		Topic: createTopicIfNotExists(client, "my-topic-5"),
-	})
-
+	err, sub := ensureTopicAndSubscription(context.Background(), client, os.Getenv("TOPIC_ID"), os.Getenv("SUBSCRIPTION_ID"))
 	if err != nil {
-		log.Fatalf("error creating subscription: %s", err)
+		log.Fatalf("error in ensuring topic and subscription : %s", err)
 	}
-	fmt.Printf("Created subscription: %v\n", sub_)
-
-	readRequest := &mocks.ReadRequest{
-		CountValue: 50,
-		Timeout:    20 * time.Second,
+	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub)
+	err = sourcer.NewServer(googlePubSubSource).Start(context.Background())
+	if err != nil {
+		log.Panic("Failed to start source server : ", err)
 	}
-	messageChan := make(chan sourcer.Message, 20)
-
-	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub_)
-	googlePubSubSource.Read(context.Background(), readRequest, messageChan)
-	/*
-		googlePubSubSource.Ack(context.Background(), mocks.TestAckRequest{OffsetsValue: make([]sourcer.Offset, 0)})
-
-		log.Println("Acknowledge Done----------&&&&&&&&&&&&&&&&&&&&&&&&&")
-		googlePubSubSource.Read(context.Background(), readRequest, messageChan)
-
-		if err := sub_.Delete(ctx); err != nil {
-			log.Fatalf("error deleting subscription: %s", err)
-		}
-
-	*/
-	/*
-		err = sourcer.NewServer(googlePubSubSource).Start(context.Background())
-		if err != nil {
-			log.Panic("Failed to start source server : ", err)
-		}
-	*/
 
 }
