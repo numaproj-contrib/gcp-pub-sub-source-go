@@ -73,7 +73,7 @@ jobs:
       - name: "Step 11: Upload docker artifact"
         uses: actions/upload-artifact@v3
         with:
-          name: gcp-pubsub-source
+          name: gcloud-pubsub-source
           path: /tmp/gcloud-pubsub-source-image.tar
 
   e2e:
