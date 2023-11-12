@@ -116,7 +116,7 @@ jobs:
 
       - name: "Step 7: Load image in cluster"
         run: |
-          docker load --input /tmp/gcp-pubsub-source-image.tar
+          docker load --input /tmp/gcloud-pubsub-source-image.tar
           k3d image import "quay.io/numaio/numaflow-go/gcloud-pubsub-source:pubsub-source" --cluster e2e
 
       - name: "Step 8: Install Numaflow"
