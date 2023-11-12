@@ -35,12 +35,12 @@ import (
 
 const TopicID = "pubsub-test"
 const Project = "pubsub-local-test"
+const subscriptionID = "subscription-09098ui1"
 
 var (
-	pubsubClient   *pubsub.Client
-	subscriptionID = "subscription-09098ui1"
-	resource       *dockertest.Resource
-	pool           *dockertest.Pool
+	pubsubClient *pubsub.Client
+	resource     *dockertest.Resource
+	pool         *dockertest.Pool
 )
 
 func publish(ctx context.Context, client *pubsub.Client, topicID, msg string) error {
@@ -164,8 +164,6 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// Additional test functions go here.
-
 func TestPubSubSource_Read(t *testing.T) {
 
 	err := ensureTopicAndSubscription(context.TODO(), pubsubClient, TopicID, subscriptionID)
@@ -178,7 +176,6 @@ func TestPubSubSource_Read(t *testing.T) {
 	go func() {
 		<-time.After(5 * time.Second)
 		sendMessages(context.Background(), pubsubClient, TopicID, 5)
-
 	}()
 
 	pubsubsource.Read(ctx, mocks.ReadRequest{
@@ -191,7 +188,6 @@ func TestPubSubSource_Read(t *testing.T) {
 	// Since the previous batch didn't get acked, the data source shouldn't allow us to read more messages
 	// We should get 0 messages, meaning the channel only holds the previous 5 messages
 	// Creating a new subscriber
-
 	pubsubsource.Read(ctx, mocks.ReadRequest{
 		CountValue: 4,
 		Timeout:    10 * time.Second,
@@ -206,7 +202,6 @@ func TestPubSubSource_Read(t *testing.T) {
 			OffsetsValue: []sourcer.Offset{msg.Offset()},
 		})
 	}
-
 	go func() {
 		<-time.After(5 * time.Second)
 		sendMessages(context.Background(), pubsubClient, TopicID, 6)
@@ -223,5 +218,4 @@ func TestPubSubSource_Read(t *testing.T) {
 		Timeout:    10 * time.Second,
 	}, messageCh)
 	assert.Equal(t, 6, len(messageCh))
-
 }

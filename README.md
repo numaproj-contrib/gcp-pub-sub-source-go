@@ -205,5 +205,3 @@ To enable debugging, set the `DEBUG` environment variable to `true` within the G
 ## Additional Resources
 
 For more information on Numaflow and how to use it to process data in a Kubernetes-native way, visit the [Numaflow Documentation](https://numaflow.numaproj.io/). For GCP Pub/Sub specific configuration, refer to the [Google Cloud Pub/Sub Documentation](https://cloud.google.com/pubsub/docs).
-```
-

@@ -1,3 +1,5 @@
+//go:build test
+
 /*
 Copyright 2022 The Numaproj Authors.
 
@@ -114,6 +116,7 @@ func (suite *GCPPubSubSourceSuite) SetupTest() {
 	gcloudPubSubLabelSelector := fmt.Sprintf("app=%s", "gcloud-pubsub")
 	suite.Given().When().WaitForStatefulSetReady(gcloudPubSubLabelSelector)
 	suite.T().Log("gcloud-pubsub resources are ready")
+	//delay to make system ready in CI
 	time.Sleep(50 * time.Second)
 
 	suite.T().Log("port forwarding gcloud-pubsub service")
@@ -136,7 +139,6 @@ func (suite *GCPPubSubSourceSuite) TestPubSubSource() {
 	sendMessages(context.Background(), pubsubclient, TOPIC_ID, 40, testMessage)
 
 	workflow.Expect().SinkContains("redis-sink", testMessage, fixtures.WithTimeout(2*time.Minute))
-
 }
 
 func TestGCPPubSubSourceSuite(t *testing.T) {

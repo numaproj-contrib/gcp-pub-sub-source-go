@@ -26,6 +26,8 @@ import (
 	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 )
 
+const MAX_EXTENSION_PERIOD = 4 * time.Minute
+
 type PubSubSource struct {
 	client       *pubsub.Client
 	subscription *pubsub.Subscription
@@ -41,42 +43,40 @@ func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest
 	if len(p.messages) > 0 {
 		return
 	}
-	ctx, cancelFunc := context.WithTimeout(context.Background(), readRequest.TimeOut())
-	defer cancelFunc()
-	cctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	p.subscription.ReceiveSettings.MaxOutstandingMessages = int(readRequest.Count())
-	p.subscription.ReceiveSettings.MaxExtensionPeriod = 4 * time.Minute
+	p.subscription.ReceiveSettings.MaxExtensionPeriod = MAX_EXTENSION_PERIOD
+
+	ctx, cancel := context.WithTimeout(context.Background(), readRequest.TimeOut())
+	defer cancel()
+
+	errCh := make(chan error, 1)
 	go func() {
-		err := p.subscription.Receive(cctx, func(ctx context.Context, msg *pubsub.Message) {
+		err := p.subscription.Receive(ctx, func(msgCtx context.Context, msg *pubsub.Message) {
 			p.lock.Lock()
+			defer p.lock.Unlock()
+
 			messageCh <- sourcesdk.NewMessage(
 				msg.Data,
 				sourcesdk.NewOffset([]byte(msg.ID), "0"),
 				msg.PublishTime,
 			)
 			p.messages[msg.ID] = msg
-			p.lock.Unlock()
 		})
 		if err != nil {
-			log.Fatalf("Error--%s", err)
-			return
+			errCh <- err
 		}
-
 	}()
-	//nolint:gosimple
-	for {
-		select {
-		case <-ctx.Done():
-			cancel()
-			return
-		}
-
+	select {
+	case <-ctx.Done():
+		return
+	case err := <-errCh:
+		log.Printf("error occurred while receiving messsages %s", err)
+		return
 	}
 }
 
 func (p *PubSubSource) Pending(_ context.Context) int64 {
-	// GCP Pubsub Doesn't provide Any api to get the number of available messages
+	// gcp pubsub doesn't provide any api to get the number of available messages
 	return -1
 }
 func (p *PubSubSource) Ack(_ context.Context, request sourcesdk.AckRequest) {
@@ -84,5 +84,4 @@ func (p *PubSubSource) Ack(_ context.Context, request sourcesdk.AckRequest) {
 		p.messages[string(offset.Value())].Ack()
 		delete(p.messages, string(offset.Value()))
 	}
-
 }
