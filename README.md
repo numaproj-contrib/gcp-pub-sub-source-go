@@ -147,7 +147,8 @@ spec:
 
   ```bash
   kubectl apply -f pubsub-source-pipeline.yaml
-By following these steps, you'll have a GCP Pub/Sub topic and subscription as sources for your Numaflow pipeline running in Kubernetes. Messages from Pub/Sub will be fetched by the pipeline and passed to the log sink for further processing.
+
+By following these steps, you'll have a GCP Pub/Sub topic and subscription as sources for your Numaflow pipeline running in Kubernetes. Messages from Pub/Sub will be fetched by the pipeline and passed to the log sink for printing out.
 
 ## Using Environment Variables to Specify the GCP Pub/Sub Source Configuration
 
