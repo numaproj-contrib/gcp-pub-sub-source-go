@@ -112,35 +112,36 @@ Congratulations! You have successfully set up a GCP Pub/Sub source in a Numaflow
 2. **Deploy a Numaflow Pipeline with GCP Pub/Sub Source:**
    - Prepare a Kubernetes manifest file, let’s say `pubsub-source-pipeline.yaml`. Here's a template to get you started:
 
-     ```yaml
-     apiVersion: numaflow.numaproj.io/v1alpha1
-     kind: Pipeline
-     metadata:
-       name: pubsub-source-pipeline
-     spec:
-       vertices:
-         - name: pubsub-source
-           source:
-             udsource:
-               container:
-                 image: "quay.io/numaio/numaflow
+```yaml
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: Pipeline
+metadata:
+  name: pubsub-source-pipeline
+spec:
+  vertices:
+    - name: pubsub-source
+      source:
+        udsource:
+          container:
+            image: "quay.io/numaio/numaflow-go/gcp-pubsub-source-go:latest"
+            env:
+              - name: PROJECT_ID
+                value: "your-gcp-project-id"
+              - name: TOPIC_ID
+                value: "your-pubsub-topic-id"
+              - name: SUBSCRIPTION_ID
+                value: "your-pubsub-subscription-id"
+              - name: PUBSUB_EMULATOR_HOST
+                value: "gcloud-pubsub.numaflow-system.svc.cluster.local:8681"
+    - name: log-sink
+      sink:
+        log: {}
+  edges:
+    - from: pubsub-source
+      to: log-sink
+    
+```
 
--go/gcp-pubsub-source-go:latest"
-env:
-- name: PROJECT_ID
-value: "your-gcp-project-id"
-- name: TOPIC_ID
-value: "your-pubsub-topic-id"
-- name: SUBSCRIPTION_ID
-value: "your-pubsub-subscription-id"
-- name: PUBSUB_EMULATOR_HOST
-value: "gcloud-pubsub.numaflow-system.svc.cluster.local:8681"
-- name: log-sink
-sink:
-log: {}
-edges:
-- from: pubsub-source
-to: log-sink
 
     - Modify the environment variables as per your Google Cloud project configuration.
     - Apply the configuration to your cluster by running:
