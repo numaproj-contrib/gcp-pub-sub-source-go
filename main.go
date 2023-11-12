@@ -57,12 +57,10 @@ func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topi
 func main() {
 	ctx := context.Background()
 	client, err := pubsub.NewClient(ctx, os.Getenv("PROJECT_ID"))
-	defer client.Close()
-
 	if err != nil {
 		log.Fatalf("error in creating pubsub client: %s", err)
 	}
-
+	defer client.Close()
 	err, sub := ensureTopicAndSubscription(context.Background(), client, os.Getenv("TOPIC_ID"), os.Getenv("SUBSCRIPTION_ID"))
 	if err != nil {
 		log.Fatalf("error in ensuring topic and subscription : %s", err)
