@@ -26,6 +26,9 @@ import (
 	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 )
 
+// MAX_EXTENSION_PERIOD The MaxExtensionPeriod in the context of Google Cloud Pub/Sub subscription
+// settings is a parameter that specifies the maximum period for which
+// the deadline for message acknowledgment may be extended.
 const MAX_EXTENSION_PERIOD = 4 * time.Minute
 
 type PubSubSource struct {
