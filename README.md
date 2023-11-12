@@ -142,8 +142,6 @@ spec:
     
 ```
 
-
-
 - Modify the environment variables as per your Google Cloud project configuration.
 - Apply the configuration to your cluster by running:
 
