@@ -67,7 +67,7 @@ jobs:
 
       - name: "Step 10: Store docker image"
         run: |
-          docker tag "quay.io/numaio/numaflow-go/aws-sqs-source-go:${{env.IMAGE_TAG}}" "quay.io/numaio/numaflow-go/gcp-pubsub-source:pubsub-source"
+          docker tag "quay.io/numaio/numaflow-go/gcp-pubsub-source:${{env.IMAGE_TAG}}" "quay.io/numaio/numaflow-go/gcp-pubsub-source:pubsub-source"
           docker save -o /tmp/aws-sqs-queue-image.tar "quay.io/numaio/numaflow-go/gcp-pubsub-source:pubsub-source"
 
       - name: "Step 11: Upload docker artifact"

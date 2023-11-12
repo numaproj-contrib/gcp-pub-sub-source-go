@@ -4,7 +4,7 @@ TARGET_ARCH?=amd64
 PACKAGE=github.com/numaproj-contrib/gcp-pub-sub-source-go
 CURRENT_DIR=$(shell pwd)
 DIST_DIR=${CURRENT_DIR}/dist
-BINARY_NAME:=aws-sqs-source-go
+BINARY_NAME:=gcp-pubsub-source-go
 IMAGE_NAMESPACE?=quay.io/numaproj
 VERSION?=latest
 
