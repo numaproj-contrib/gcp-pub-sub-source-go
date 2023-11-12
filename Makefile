@@ -18,7 +18,7 @@ override LDFLAGS += \
 DOCKER_PUSH?=false
 BASE_VERSION:=latest
 DOCKERIO_ORG=quay.io/numaio
-PLATFORMS=linux/x86_64,linux/amd64,linux/arm64
+PLATFORMS=linux/x86_64
 TARGET=gcloud-pubsub-source
 
 
