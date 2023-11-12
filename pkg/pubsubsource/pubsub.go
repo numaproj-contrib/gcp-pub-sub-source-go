@@ -64,7 +64,7 @@ func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest
 		}
 
 	}()
-	//lint:ignore S1000 we are not iterating over channel ,waiting for ctx.Done() in select
+	//nolint:gosimple
 	for {
 		select {
 		case <-ctx.Done():
