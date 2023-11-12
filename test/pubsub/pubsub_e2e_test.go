@@ -114,7 +114,7 @@ func (suite *GCPPubSubSourceSuite) SetupTest() {
 	gcloudPubSubLabelSelector := fmt.Sprintf("app=%s", "gcloud-pubsub")
 	suite.Given().When().WaitForStatefulSetReady(gcloudPubSubLabelSelector)
 	suite.T().Log("gcloud-pubsub resources are ready")
-	time.Sleep(30 * time.Second)
+	time.Sleep(50 * time.Second)
 
 	suite.T().Log("port forwarding gcloud-pubsub service")
 	suite.StartPortForward("gcloud-pubsub-0", 8681)
