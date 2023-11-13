@@ -20,6 +20,8 @@ spec:
                 value: "subscription-09098ui1"
               - name: PUBSUB_EMULATOR_HOST
                 value: "gcloud-pubsub.numaflow-system.svc.cluster.local:8681"
+              - name: MAX_EXTENSION_PERIOD  #specifies the maximum period for which the deadline for message acknowledgment may be extended 30s ,30m
+                value: "240s"
     - name: redis-sink
       sink:
         udsink:

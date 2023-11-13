@@ -87,7 +87,7 @@ func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topi
 	return nil
 }
 
-func CreatePubSubClient() *pubsub.Client {
+func createPubSubClient() *pubsub.Client {
 	pubsubClient, err := pubsub.NewClient(context.Background(), PROJECT_ID)
 	if err != nil {
 		log.Fatalf("Failed to create client: %v", err)
@@ -127,7 +127,7 @@ func (suite *GCPPubSubSourceSuite) TestPubSubSource() {
 	err := os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
 	assert.Nil(suite.T(), err)
 	var testMessage = "pubsub-go"
-	pubsubclient := CreatePubSubClient()
+	pubsubclient := createPubSubClient()
 	assert.NotNil(suite.T(), pubsubclient)
 	err = ensureTopicAndSubscription(context.Background(), pubsubclient, TOPIC_ID, SUBSCRIPTION_ID)
 	assert.Nil(suite.T(), err)

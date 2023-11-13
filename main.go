@@ -19,39 +19,33 @@ package main
 import (
 	"cloud.google.com/go/pubsub"
 	"context"
+	"fmt"
 	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/pubsubsource"
 	"github.com/numaproj/numaflow-go/pkg/sourcer"
 	"log"
 	"os"
 )
 
-func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topicID, subID string) (error, *pubsub.Subscription) {
+// ensureTopicAndSubscription checks if the specified topic and subscription exist.
+// It returns an error if either the topic or the subscription doesn't exist.
+func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topicID, subID string) (*pubsub.Subscription, error) {
 	topic := client.Topic(topicID)
 	exists, err := topic.Exists(ctx)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	if !exists {
-		if _, err = client.CreateTopic(ctx, topicID); err != nil {
-			return err, nil
-		}
+		return nil, fmt.Errorf("topic does not exist: %s", topicID)
 	}
-
-	topic = client.Topic(topicID)
 	sub := client.Subscription(subID)
-
-	// Check if the subscription exists, create it if it doesn't.
 	exists, err = sub.Exists(ctx)
 	if err != nil {
-		return err, nil
+		return nil, err
 	}
 	if !exists {
-		if sub, err = client.CreateSubscription(ctx, subID, pubsub.SubscriptionConfig{Topic: topic}); err != nil {
-			return err, nil
-		}
+		return nil, fmt.Errorf("subscription does not exist: %s", subID)
 	}
-
-	return nil, sub
+	return sub, nil
 }
 
 func main() {
@@ -61,14 +55,14 @@ func main() {
 		log.Fatalf("error in creating pubsub client: %s", err)
 	}
 	defer client.Close()
-	err, sub := ensureTopicAndSubscription(context.Background(), client, os.Getenv("TOPIC_ID"), os.Getenv("SUBSCRIPTION_ID"))
+	sub, err := ensureTopicAndSubscription(context.Background(), client, os.Getenv("TOPIC_ID"), os.Getenv("SUBSCRIPTION_ID"))
 	if err != nil {
 		log.Fatalf("error in ensuring topic and subscription : %s", err)
 	}
 	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub)
 	err = sourcer.NewServer(googlePubSubSource).Start(context.Background())
 	if err != nil {
-		log.Panic("Failed to start source server : ", err)
+		log.Panic("failed to start source server : ", err)
 	}
 
 }

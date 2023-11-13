@@ -17,39 +17,42 @@ limitations under the License.
 package pubsubsource
 
 import (
+	"cloud.google.com/go/pubsub"
 	"context"
+	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 	"log"
+	"os"
 	"sync"
 	"time"
-
-	"cloud.google.com/go/pubsub"
-	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 )
 
-// MAX_EXTENSION_PERIOD The MaxExtensionPeriod in the context of Google Cloud Pub/Sub subscription
-// settings is a parameter that specifies the maximum period for which
-// the deadline for message acknowledgment may be extended.
-const MAX_EXTENSION_PERIOD = 4 * time.Minute
-
+// PubSubSource represents a source of messages in a publish-subscribe system.
 type PubSubSource struct {
 	client       *pubsub.Client
 	subscription *pubsub.Subscription
-	messages     map[string]*pubsub.Message
+	messages     map[string]*pubsub.Message //messages field  serves as a cache or storage for unacknowledged pubsub.Message objects that have been received but not yet processed.
 	lock         *sync.Mutex
 }
 
 func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription) *PubSubSource {
+	maxExtensionPeriod, err := time.ParseDuration(os.Getenv("MAX_EXTENSION_PERIOD"))
+	if err != nil {
+		log.Fatalf("error creating source ,max extension period is invalid %s", err)
+	}
+	subscription.ReceiveSettings.MaxExtensionPeriod = maxExtensionPeriod
 	return &PubSubSource{client: client, subscription: subscription, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex)}
 }
 
-func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest, messageCh chan<- sourcesdk.Message) {
+func (p *PubSubSource) Read(ctx context.Context, readRequest sourcesdk.ReadRequest, messageCh chan<- sourcesdk.Message) {
+	// this condition will happen only if there are unacked messages.
+	// Read can happen only after all the messages are acked.
 	if len(p.messages) > 0 {
 		return
 	}
-	p.subscription.ReceiveSettings.MaxOutstandingMessages = int(readRequest.Count())
-	p.subscription.ReceiveSettings.MaxExtensionPeriod = MAX_EXTENSION_PERIOD
 
-	ctx, cancel := context.WithTimeout(context.Background(), readRequest.TimeOut())
+	p.subscription.ReceiveSettings.MaxOutstandingMessages = int(readRequest.Count())
+
+	ctx, cancel := context.WithTimeout(ctx, readRequest.TimeOut())
 	defer cancel()
 
 	errCh := make(chan error, 1)
@@ -57,7 +60,6 @@ func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest
 		err := p.subscription.Receive(ctx, func(msgCtx context.Context, msg *pubsub.Message) {
 			p.lock.Lock()
 			defer p.lock.Unlock()
-
 			messageCh <- sourcesdk.NewMessage(
 				msg.Data,
 				sourcesdk.NewOffset([]byte(msg.ID), "0"),
@@ -82,9 +84,21 @@ func (p *PubSubSource) Pending(_ context.Context) int64 {
 	// gcp pubsub doesn't provide any api to get the number of available messages
 	return -1
 }
-func (p *PubSubSource) Ack(_ context.Context, request sourcesdk.AckRequest) {
+func (p *PubSubSource) Ack(ctx context.Context, request sourcesdk.AckRequest) {
 	for _, offset := range request.Offsets() {
-		p.messages[string(offset.Value())].Ack()
-		delete(p.messages, string(offset.Value()))
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			p.lock.Lock()
+			p.messages[string(offset.Value())].Ack()
+			delete(p.messages, string(offset.Value()))
+			p.lock.Unlock()
+		}
 	}
+}
+
+// SetSubscription  allows the PubSubSource to switch to a different subscriber at runtime without needing to create a new PubSubSource instance.
+func (p *PubSubSource) SetSubscription(sub *pubsub.Subscription) {
+	p.subscription = sub
 }

@@ -16,26 +16,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
+	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
+	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/mocks"
+	"github.com/numaproj/numaflow-go/pkg/sourcer"
+	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"strings"
 	"testing"
 	"time"
-
-	"cloud.google.com/go/pubsub"
-	"github.com/numaproj/numaflow-go/pkg/sourcer"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
-
-	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/mocks"
 )
 
 const TopicID = "pubsub-test"
 const Project = "pubsub-local-test"
-const subscriptionID = "subscription-09098ui1"
+const subscriptionID = "subscription-09098"
 
 var (
 	pubsubClient *pubsub.Client
@@ -139,10 +137,14 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("error -%s", err)
 	}
-	ctx := context.Background()
+
+	err = os.Setenv("MAX_EXTENSION_PERIOD", "240s")
+	if err != nil {
+		log.Fatalf("error -%s", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
 
 	if err := pool.Retry(func() error {
-		// Creates a client.
 		pubsubClient, err = pubsub.NewClient(ctx, Project)
 		if err != nil {
 			log.Fatalf("Failed to create client: %v", err)
@@ -154,68 +156,83 @@ func TestMain(m *testing.M) {
 		}
 		log.Fatalf("could not connect to gcloud pubsub %s", err)
 	}
+	defer pubsubClient.Close()
+	defer cancel()
 	code := m.Run()
 	if resource != nil {
 		if err := pool.Purge(resource); err != nil {
 			log.Fatalf("Couln't purge resource %s", err)
 		}
 	}
-	defer pubsubClient.Close()
 	os.Exit(code)
 }
 
 func TestPubSubSource_Read(t *testing.T) {
-
-	err := ensureTopicAndSubscription(context.TODO(), pubsubClient, TopicID, subscriptionID)
+	setupCtx, cancelSetup := context.WithCancel(context.Background())
+	err := ensureTopicAndSubscription(setupCtx, pubsubClient, TopicID, subscriptionID)
 	assert.Nil(t, err)
+	cancelSetup()
+
 	messageCh := make(chan sourcer.Message, 20)
-	//doneCh := make(chan struct{})
-	sub := pubsubClient.Subscription(subscriptionID)
-	pubsubsource := NewPubSubSource(pubsubClient, sub)
-	ctx := context.Background()
+
+	firstReadCtx, cancelFirstRead := context.WithCancel(context.Background())
+
+	subscription := pubsubClient.Subscription(subscriptionID)
+	pubsubSource := NewPubSubSource(pubsubClient, subscription)
+
+	firstSendDoneCh := make(chan struct{})
 	go func() {
-		<-time.After(5 * time.Second)
-		sendMessages(context.Background(), pubsubClient, TopicID, 5)
+		defer close(firstSendDoneCh) // Ensure to close channel after sending
+		time.Sleep(5 * time.Second)
+		sendMessages(firstReadCtx, pubsubClient, TopicID, 5)
 	}()
 
-	pubsubsource.Read(ctx, mocks.ReadRequest{
+	pubsubSource.Read(firstReadCtx, mocks.ReadRequest{
 		CountValue: 5,
 		Timeout:    20 * time.Second,
 	}, messageCh)
 	assert.Equal(t, 5, len(messageCh))
+	<-firstSendDoneCh
+	cancelFirstRead()
+
+	secondReadCtx, cancelSecondRead := context.WithCancel(context.Background())
 
 	// Try reading 4 more messages
 	// Since the previous batch didn't get acked, the data source shouldn't allow us to read more messages
 	// We should get 0 messages, meaning the channel only holds the previous 5 messages
-	// Creating a new subscriber
-	pubsubsource.Read(ctx, mocks.ReadRequest{
+	pubsubSource.Read(secondReadCtx, mocks.ReadRequest{
 		CountValue: 4,
 		Timeout:    10 * time.Second,
 	}, messageCh)
-	assert.Equal(t, 5, len(messageCh))
+	assert.Equal(t, 5, len(messageCh)) // Expecting no new messages
 
-	// Ack the first batch
-	// Acknowledge messages.
-	for i := 0; i < 5; i++ {
-		msg := <-messageCh
-		pubsubsource.Ack(ctx, mocks.TestAckRequest{
-			OffsetsValue: []sourcer.Offset{msg.Offset()},
-		})
-	}
+	// acknowledging the first batch
+	msg1 := <-messageCh
+	msg2 := <-messageCh
+	msg3 := <-messageCh
+	msg4 := <-messageCh
+	msg5 := <-messageCh
+	pubsubSource.Ack(secondReadCtx, mocks.TestAckRequest{
+		OffsetsValue: []sourcer.Offset{msg1.Offset(), msg2.Offset(), msg3.Offset(), msg4.Offset(), msg5.Offset()},
+	})
+	cancelSecondRead()
+
+	thirdReadCtx, cancelThirdRead := context.WithCancel(context.Background())
+	thirdSendDoneCh := make(chan struct{})
 	go func() {
-		<-time.After(5 * time.Second)
-		sendMessages(context.Background(), pubsubClient, TopicID, 6)
-
+		defer close(thirdSendDoneCh) // Ensure to close channel after sending
+		time.Sleep(5 * time.Second)
+		sendMessages(thirdReadCtx, pubsubClient, TopicID, 6)
 	}()
 
-	// Try reading 6 more messages
-	// Since the previous batch got acked, the data source should allow us to read more messages
-	// We should get 6 messages
-	sub2 := pubsubClient.Subscription(subscriptionID)
-	pubsubsource2 := NewPubSubSource(pubsubClient, sub2)
-	pubsubsource2.Read(ctx, mocks.ReadRequest{
+	// Getting a new subscriber from the existing subscription
+	// As previous subscribers are closed
+	pubsubSource.SetSubscription(pubsubClient.Subscription(subscriptionID))
+	pubsubSource.Read(thirdReadCtx, mocks.ReadRequest{
 		CountValue: 6,
 		Timeout:    10 * time.Second,
 	}, messageCh)
 	assert.Equal(t, 6, len(messageCh))
+	<-thirdSendDoneCh
+	cancelThirdRead()
 }
