@@ -152,7 +152,7 @@ func TestMain(m *testing.M) {
 		if resource != nil {
 			_ = pool.Purge(resource)
 		}
-		log.Fatalf("could not connect to gcloud pubsub sqs %s", err)
+		log.Fatalf("could not connect to gcloud pubsub %s", err)
 	}
 	code := m.Run()
 	if resource != nil {
