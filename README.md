@@ -75,5 +75,3 @@ Enable debugging by setting `DEBUG=true` in the GCP Pub/Sub source container's e
 ## Additional Resources
 
 For more information, visit the [Numaflow Documentation](https://numaflow.numaproj.io/) and [Google Cloud Pub/Sub Documentation](https://cloud.google.com/pubsub/docs).
-
-ed additions and details, ensuring a comprehensive and clear guide for setting up a GCP Pub/Sub source in a Numaflow pipeline.

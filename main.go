@@ -26,9 +26,9 @@ import (
 	"os"
 )
 
-// ensureTopicAndSubscription checks if the specified topic and subscription exist.
-// It returns an error if either the topic or the subscription doesn't exist.
-func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topicID, subID string) (*pubsub.Subscription, error) {
+// getSubscription checks if the specified topic and subscription exist.
+// It returns an error if either the topic or the subscription doesn't exist or the subscription object
+func getSubscription(ctx context.Context, client *pubsub.Client, topicID, subID string) (*pubsub.Subscription, error) {
 	topic := client.Topic(topicID)
 	exists, err := topic.Exists(ctx)
 	if err != nil {
@@ -49,15 +49,18 @@ func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topi
 }
 
 func main() {
+	subscriptionId := os.Getenv("SUBSCRIPTION_ID")
+	topicId := os.Getenv("TOPIC_ID")
+	projectId := os.Getenv("PROJECT_ID")
 	ctx := context.Background()
-	client, err := pubsub.NewClient(ctx, os.Getenv("PROJECT_ID"))
+	client, err := pubsub.NewClient(ctx, projectId)
 	if err != nil {
 		log.Fatalf("error in creating pubsub client: %s", err)
 	}
 	defer client.Close()
-	sub, err := ensureTopicAndSubscription(context.Background(), client, os.Getenv("TOPIC_ID"), os.Getenv("SUBSCRIPTION_ID"))
+	sub, err := getSubscription(context.Background(), client, topicId, subscriptionId)
 	if err != nil {
-		log.Fatalf("error in ensuring topic and subscription : %s", err)
+		log.Fatalf("error in getting subscription : %s", err)
 	}
 	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub)
 	err = sourcer.NewServer(googlePubSubSource).Start(context.Background())

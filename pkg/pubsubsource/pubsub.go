@@ -37,7 +37,7 @@ type PubSubSource struct {
 func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription) *PubSubSource {
 	maxExtensionPeriod, err := time.ParseDuration(os.Getenv("MAX_EXTENSION_PERIOD"))
 	if err != nil {
-		log.Fatalf("error creating source ,max extension period is invalid %s", err)
+		log.Fatalf("error creating source, max extension period is invalid %s", err)
 	}
 	subscription.ReceiveSettings.MaxExtensionPeriod = maxExtensionPeriod
 	return &PubSubSource{client: client, subscription: subscription, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex)}

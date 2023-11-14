@@ -19,7 +19,6 @@ import (
 	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
-	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/mocks"
 	"github.com/numaproj/numaflow-go/pkg/sourcer"
 	"github.com/ory/dockertest/v3"
 	"github.com/ory/dockertest/v3/docker"
@@ -29,11 +28,15 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/mocks"
 )
 
 const TopicID = "pubsub-test"
 const Project = "pubsub-local-test"
 const subscriptionID = "subscription-09098"
+const MAX_EXTENSION_PERIOD = "240s"
+const PUB_SUB_EMULATOR_HOST = "localhost:8681"
 
 var (
 	pubsubClient *pubsub.Client
@@ -133,12 +136,12 @@ func TestMain(m *testing.M) {
 		}
 	}
 
-	err = os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
+	err = os.Setenv("PUBSUB_EMULATOR_HOST", PUB_SUB_EMULATOR_HOST)
 	if err != nil {
 		log.Fatalf("error -%s", err)
 	}
 
-	err = os.Setenv("MAX_EXTENSION_PERIOD", "240s")
+	err = os.Setenv("MAX_EXTENSION_PERIOD", MAX_EXTENSION_PERIOD)
 	if err != nil {
 		log.Fatalf("error -%s", err)
 	}
