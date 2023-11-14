@@ -175,9 +175,7 @@ func TestPubSubSource_Read(t *testing.T) {
 	err := ensureTopicAndSubscription(setupCtx, pubsubClient, TopicID, subscriptionID)
 	assert.Nil(t, err)
 	cancelSetup()
-
 	messageCh := make(chan sourcer.Message, 20)
-
 	firstReadCtx, cancelFirstRead := context.WithCancel(context.Background())
 
 	subscription := pubsubClient.Subscription(subscriptionID)
@@ -185,7 +183,7 @@ func TestPubSubSource_Read(t *testing.T) {
 
 	firstSendDoneCh := make(chan struct{})
 	go func() {
-		defer close(firstSendDoneCh) // Ensure to close channel after sending
+		defer close(firstSendDoneCh)
 		time.Sleep(5 * time.Second)
 		sendMessages(firstReadCtx, pubsubClient, TopicID, 5)
 	}()

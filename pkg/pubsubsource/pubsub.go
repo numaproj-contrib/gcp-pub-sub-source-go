@@ -39,7 +39,7 @@ func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription) *
 	if err != nil {
 		log.Fatalf("error creating source, max extension period is invalid %s", err)
 	}
-	subscription.ReceiveSettings.MaxExtensionPeriod = maxExtensionPeriod
+	subscription.ReceiveSettings.MaxExtension = maxExtensionPeriod
 	return &PubSubSource{client: client, subscription: subscription, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex)}
 }
 
@@ -69,6 +69,7 @@ func (p *PubSubSource) Read(ctx context.Context, readRequest sourcesdk.ReadReque
 		})
 		if err != nil {
 			errCh <- err
+			return
 		}
 	}()
 	select {
