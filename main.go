@@ -23,6 +23,8 @@ import (
 	"github.com/numaproj/numaflow-go/pkg/sourcer"
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/pubsubsource"
 )
@@ -53,7 +55,17 @@ func main() {
 	subscriptionId := os.Getenv("SUBSCRIPTION_ID")
 	topicId := os.Getenv("TOPIC_ID")
 	projectId := os.Getenv("PROJECT_ID")
-	ctx := context.Background()
+	maxOutStandingMessages, err := strconv.Atoi(os.Getenv("MAX_OUT_STANDING_MESSAGES"))
+	if err != nil {
+		log.Fatalf("error creating source, max out standing message is invalid %s", err)
+	}
+	maxExtensionPeriod, err := time.ParseDuration(os.Getenv("MAX_EXTENSION_PERIOD"))
+
+	if err != nil {
+		log.Fatalf("error creating source, max extension period is invalid %s", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	client, err := pubsub.NewClient(ctx, projectId)
 	if err != nil {
 		log.Fatalf("error in creating pubsub client: %s", err)
@@ -63,12 +75,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("error in getting subscription : %s", err)
 	}
-	var monitoringClient *pubsubsource.MonitoringClient
-	// monitoring client is available only in production environment
-	if len(os.Getenv("PUBSUB_EMULATOR_HOST")) == 0 {
-		monitoringClient = pubsubsource.NewMonitoringClient(projectId, subscriptionId)
-	}
-	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub, monitoringClient)
+	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub, maxExtensionPeriod, maxOutStandingMessages)
+	googlePubSubSource.StartReceiving(ctx)
 	err = sourcer.NewServer(googlePubSubSource).Start(context.Background())
 	if err != nil {
 		log.Panic("failed to start source server : ", err)

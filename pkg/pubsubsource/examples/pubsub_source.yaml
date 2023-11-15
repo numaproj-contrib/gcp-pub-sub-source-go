@@ -22,6 +22,8 @@ spec:
                 value: "" # For production keep it blank string
               - name: MAX_EXTENSION_PERIOD  #specifies the maximum period for which the deadline for message acknowledgment may be extended 30s ,30m
                 value: "240s"
+              - name: MAX_OUT_STANDING_MESSAGES  # maximum number of unacknowledged messages that can be held at a given time
+                value: "20"
               - name: GOOGLE_APPLICATION_CREDENTIALS
                 value: /var/secrets/google/key.json
             volumeMounts:
@@ -39,4 +41,3 @@ spec:
   edges:
     - from: in
       to: redis-sink
-

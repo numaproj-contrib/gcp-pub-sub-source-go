@@ -19,7 +19,6 @@ package pubsubsource
 import (
 	"context"
 	"log"
-	"os"
 	"sync"
 	"time"
 
@@ -29,71 +28,48 @@ import (
 
 // PubSubSource represents a source of messages in a publish-subscribe system.
 type PubSubSource struct {
-	client           *pubsub.Client
-	subscription     *pubsub.Subscription
-	monitoringClient *MonitoringClient
-	messages         map[string]*pubsub.Message //messages field  serves as a cache or storage for unacknowledged pubsub.Message objects that have been received but not yet processed.
-	lock             *sync.Mutex
+	client       *pubsub.Client
+	subscription *pubsub.Subscription
+	receiveCh    chan *pubsub.Message       //buffered channel for buffering messages received from the subscription.
+	messages     map[string]*pubsub.Message //messages field  serves as a cache or storage for unacknowledged pubsub.Message objects that have been received but not yet processed.
+	lock         *sync.Mutex
 }
 
-func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription, monitoringClient *MonitoringClient) *PubSubSource {
-	maxExtensionPeriod, err := time.ParseDuration(os.Getenv("MAX_EXTENSION_PERIOD"))
-	if err != nil {
-		log.Fatalf("error creating source, max extension period is invalid %s", err)
-	}
+func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription, maxExtensionPeriod time.Duration, maxOutStandingMessages int) *PubSubSource {
 	subscription.ReceiveSettings.MaxExtension = maxExtensionPeriod
-	return &PubSubSource{client: client, subscription: subscription, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex), monitoringClient: monitoringClient}
+	subscription.ReceiveSettings.MaxOutstandingMessages = maxOutStandingMessages
+	receiveCh := make(chan *pubsub.Message, maxOutStandingMessages)
+	return &PubSubSource{client: client, subscription: subscription, receiveCh: receiveCh, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex)}
 }
 
-func (p *PubSubSource) Read(ctx context.Context, readRequest sourcesdk.ReadRequest, messageCh chan<- sourcesdk.Message) {
+func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest, messageCh chan<- sourcesdk.Message) {
+
 	// this condition will happen only if there are unacked messages.
 	// Read can happen only after all the messages are acked.
 	if len(p.messages) > 0 {
 		return
 	}
-
-	p.subscription.ReceiveSettings.MaxOutstandingMessages = int(readRequest.Count())
-	ctx, cancel := context.WithTimeout(ctx, readRequest.TimeOut())
+	ctx, cancel := context.WithTimeout(context.Background(), readRequest.TimeOut())
 	defer cancel()
-
-	errCh := make(chan error, 1)
-	go func() {
-		err := p.subscription.Receive(ctx, func(msgCtx context.Context, msg *pubsub.Message) {
-			p.lock.Lock()
-			defer p.lock.Unlock()
+	for i := 0; i < int(readRequest.Count()) && ctx.Err() == nil; i++ {
+		select {
+		case msg := <-p.receiveCh:
 			messageCh <- sourcesdk.NewMessage(
 				msg.Data,
 				sourcesdk.NewOffset([]byte(msg.ID), "0"),
 				msg.PublishTime,
 			)
+			p.lock.Lock()
 			p.messages[msg.ID] = msg
-		})
-		if err != nil {
-			errCh <- err
+			p.lock.Unlock()
+		case <-ctx.Done():
 			return
 		}
-	}()
-	select {
-	case <-ctx.Done():
-		return
-	case err := <-errCh:
-		log.Printf("error occurred while receiving messsages %s", err)
-		return
 	}
 }
 
-func (p *PubSubSource) Pending(ctx context.Context) int64 {
-	// monitoring client doesn't work on emulator environment ,check is required to make sure monitoring is enabled
-	if p.monitoringClient != nil {
-		count, err := p.monitoringClient.GetPendingMessageCount(ctx)
-		if err != nil {
-			log.Printf("error getting num_undelivered_messages %s", err)
-			return 0
-		}
-		log.Println("pending count", count)
-		return count
-	}
-	return -1
+func (p *PubSubSource) Pending(_ context.Context) int64 {
+	return int64(len(p.receiveCh))
 }
 func (p *PubSubSource) Ack(ctx context.Context, request sourcesdk.AckRequest) {
 	for _, offset := range request.Offsets() {
@@ -109,7 +85,17 @@ func (p *PubSubSource) Ack(ctx context.Context, request sourcesdk.AckRequest) {
 	}
 }
 
-// SetSubscription  allows the PubSubSource to switch to a different subscriber at runtime without needing to create a new PubSubSource instance.
-func (p *PubSubSource) SetSubscription(sub *pubsub.Subscription) {
-	p.subscription = sub
+func (p *PubSubSource) StartReceiving(ctx context.Context) {
+	go func() {
+		err := p.subscription.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+			select {
+			case p.receiveCh <- msg:
+			case <-ctx.Done():
+				return
+			}
+		})
+		if err != nil {
+			log.Fatalf("error receiving  messages: %v", err)
+		}
+	}()
 }

@@ -38,8 +38,9 @@ import (
 const TopicID = "pubsub-test"
 const Project = "pubsub-local-test"
 const subscriptionID = "subscription-09098"
-const MAX_EXTENSION_PERIOD = "240s"
+const MAX_EXTENSION_PERIOD = 240 * time.Second
 const PUB_SUB_EMULATOR_HOST = "localhost:8681"
+const MAX_OUT_STANDING_MESSAGES = 20
 
 var (
 	pubsubClient *pubsub.Client
@@ -143,13 +144,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("error -%s", err)
 	}
-
-	err = os.Setenv("MAX_EXTENSION_PERIOD", MAX_EXTENSION_PERIOD)
-	if err != nil {
-		log.Fatalf("error -%s", err)
-	}
 	ctx, cancel := context.WithCancel(context.Background())
-
 	if err := pool.Retry(func() error {
 		pubsubClient, err = pubsub.NewClient(ctx, Project)
 		if err != nil {
@@ -179,32 +174,28 @@ func TestPubSubSource_Read(t *testing.T) {
 	assert.Nil(t, err)
 	cancelSetup()
 	messageCh := make(chan sourcer.Message, 20)
-	firstReadCtx, cancelFirstRead := context.WithCancel(context.Background())
-
 	subscription := pubsubClient.Subscription(subscriptionID)
-	pubsubSource := NewPubSubSource(pubsubClient, subscription, nil)
-
-	firstSendDoneCh := make(chan struct{})
+	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD, MAX_OUT_STANDING_MESSAGES)
+	ctx, cancel := context.WithCancel(context.Background())
+	publishChan := make(chan struct{})
+	defer cancel()
+	pubsubSource.StartReceiving(ctx)
 	go func() {
-		defer close(firstSendDoneCh)
-		time.Sleep(5 * time.Second)
-		sendMessages(firstReadCtx, pubsubClient, TopicID, 5)
+		sendMessages(ctx, pubsubClient, TopicID, 100)
+		close(publishChan)
+
 	}()
 
-	pubsubSource.Read(firstReadCtx, mocks.ReadRequest{
+	pubsubSource.Read(ctx, mocks.ReadRequest{
 		CountValue: 5,
 		Timeout:    20 * time.Second,
 	}, messageCh)
 	assert.Equal(t, 5, len(messageCh))
-	<-firstSendDoneCh
-	cancelFirstRead()
-
-	secondReadCtx, cancelSecondRead := context.WithCancel(context.Background())
 
 	// Try reading 4 more messages
 	// Since the previous batch didn't get acked, the data source shouldn't allow us to read more messages
 	// We should get 0 messages, meaning the channel only holds the previous 5 messages
-	pubsubSource.Read(secondReadCtx, mocks.ReadRequest{
+	pubsubSource.Read(ctx, mocks.ReadRequest{
 		CountValue: 4,
 		Timeout:    10 * time.Second,
 	}, messageCh)
@@ -216,25 +207,15 @@ func TestPubSubSource_Read(t *testing.T) {
 	msg3 := <-messageCh
 	msg4 := <-messageCh
 	msg5 := <-messageCh
-	pubsubSource.Ack(secondReadCtx, mocks.TestAckRequest{
+	pubsubSource.Ack(ctx, mocks.TestAckRequest{
 		OffsetsValue: []sourcer.Offset{msg1.Offset(), msg2.Offset(), msg3.Offset(), msg4.Offset(), msg5.Offset()},
 	})
-	cancelSecondRead()
 
-	thirdReadCtx, cancelThirdRead := context.WithCancel(context.Background())
-	thirdSendDoneCh := make(chan struct{})
-	go func() {
-		defer close(thirdSendDoneCh) // Ensure to close channel after sending
-		time.Sleep(5 * time.Second)
-		sendMessages(thirdReadCtx, pubsubClient, TopicID, 6)
-	}()
-
-	time.Sleep(5 * time.Second)
-	pubsubSource.Read(thirdReadCtx, mocks.ReadRequest{
+	pubsubSource.Read(ctx, mocks.ReadRequest{
 		CountValue: 6,
 		Timeout:    10 * time.Second,
 	}, messageCh)
 	assert.Equal(t, 6, len(messageCh))
-	<-thirdSendDoneCh
-	cancelThirdRead()
+
+	<-publishChan
 }
