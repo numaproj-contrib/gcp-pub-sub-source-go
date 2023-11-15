@@ -16,18 +16,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 import (
-	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
-	"github.com/numaproj/numaflow-go/pkg/sourcer"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/pubsub"
+	"github.com/numaproj/numaflow-go/pkg/sourcer"
+	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/mocks"
 )
@@ -226,9 +227,7 @@ func TestPubSubSource_Read(t *testing.T) {
 		sendMessages(thirdReadCtx, pubsubClient, TopicID, 6)
 	}()
 
-	// Getting a new subscriber from the existing subscription
-	// As previous subscribers are closed
-	pubsubSource.SetSubscription(pubsubClient.Subscription(subscriptionID))
+	time.Sleep(5 * time.Second)
 	pubsubSource.Read(thirdReadCtx, mocks.ReadRequest{
 		CountValue: 6,
 		Timeout:    10 * time.Second,

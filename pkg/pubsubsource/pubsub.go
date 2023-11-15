@@ -17,13 +17,14 @@ limitations under the License.
 package pubsubsource
 
 import (
-	"cloud.google.com/go/pubsub"
 	"context"
-	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 	"log"
 	"os"
 	"sync"
 	"time"
+
+	"cloud.google.com/go/pubsub"
+	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 )
 
 // PubSubSource represents a source of messages in a publish-subscribe system.
