@@ -29,6 +29,7 @@ func TestMonitoringClient_GetPendingMessageCount(t *testing.T) {
 	monitoringClient := NewMonitoringClient("my-project-1500816644689", "numaflowtest")
 	assert.NotNil(t, monitoringClient)
 	count, err := monitoringClient.GetPendingMessageCount(context.Background())
-	t.Log(count)
+	assert.Nil(t, err)
+	assert.GreaterOrEqual(t, count, 0)
 
 }
