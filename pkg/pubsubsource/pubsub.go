@@ -29,19 +29,20 @@ import (
 
 // PubSubSource represents a source of messages in a publish-subscribe system.
 type PubSubSource struct {
-	client       *pubsub.Client
-	subscription *pubsub.Subscription
-	messages     map[string]*pubsub.Message //messages field  serves as a cache or storage for unacknowledged pubsub.Message objects that have been received but not yet processed.
-	lock         *sync.Mutex
+	client           *pubsub.Client
+	subscription     *pubsub.Subscription
+	monitoringClient *MonitoringClient
+	messages         map[string]*pubsub.Message //messages field  serves as a cache or storage for unacknowledged pubsub.Message objects that have been received but not yet processed.
+	lock             *sync.Mutex
 }
 
-func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription) *PubSubSource {
+func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription, monitoringClient *MonitoringClient) *PubSubSource {
 	maxExtensionPeriod, err := time.ParseDuration(os.Getenv("MAX_EXTENSION_PERIOD"))
 	if err != nil {
 		log.Fatalf("error creating source, max extension period is invalid %s", err)
 	}
 	subscription.ReceiveSettings.MaxExtension = maxExtensionPeriod
-	return &PubSubSource{client: client, subscription: subscription, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex)}
+	return &PubSubSource{client: client, subscription: subscription, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex), monitoringClient: monitoringClient}
 }
 
 func (p *PubSubSource) Read(ctx context.Context, readRequest sourcesdk.ReadRequest, messageCh chan<- sourcesdk.Message) {
@@ -52,7 +53,6 @@ func (p *PubSubSource) Read(ctx context.Context, readRequest sourcesdk.ReadReque
 	}
 
 	p.subscription.ReceiveSettings.MaxOutstandingMessages = int(readRequest.Count())
-
 	ctx, cancel := context.WithTimeout(ctx, readRequest.TimeOut())
 	defer cancel()
 
@@ -82,8 +82,17 @@ func (p *PubSubSource) Read(ctx context.Context, readRequest sourcesdk.ReadReque
 	}
 }
 
-func (p *PubSubSource) Pending(_ context.Context) int64 {
-	// gcp pubsub doesn't provide any api to get the number of available messages
+func (p *PubSubSource) Pending(ctx context.Context) int64 {
+	// monitoring client doesn't work on emulator environment ,check is required to make sure monitoring is enabled
+	if p.monitoringClient != nil {
+		count, err := p.monitoringClient.GetPendingMessageCount(ctx)
+		if err != nil {
+			log.Printf("error getting num_undelivered_messages %s", err)
+			return 0
+		}
+		log.Println("pending count", count)
+		return count
+	}
 	return -1
 }
 func (p *PubSubSource) Ack(ctx context.Context, request sourcesdk.AckRequest) {

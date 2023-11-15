@@ -20,10 +20,11 @@ import (
 	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
-	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/pubsubsource"
 	"github.com/numaproj/numaflow-go/pkg/sourcer"
 	"log"
 	"os"
+
+	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/pubsubsource"
 )
 
 // getSubscription checks if the specified topic and subscription exist.
@@ -62,7 +63,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("error in getting subscription : %s", err)
 	}
-	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub)
+	var monitoringClient *pubsubsource.MonitoringClient
+	// monitoring client is available only in production environment
+	if len(os.Getenv("PUBSUB_EMULATOR_HOST")) == 0 {
+		monitoringClient = pubsubsource.NewMonitoringClient(projectId, subscriptionId)
+	}
+	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub, monitoringClient)
 	err = sourcer.NewServer(googlePubSubSource).Start(context.Background())
 	if err != nil {
 		log.Panic("failed to start source server : ", err)

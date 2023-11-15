@@ -13,15 +13,24 @@ spec:
             image: "quay.io/numaio/numaflow-go/gcloud-pubsub-source:latest"
             env:
               - name: PROJECT_ID
-                value: "pubsub-test"
+                value: "my-project-1500816644689"
               - name: TOPIC_ID
-                value: "pubsub-test-topic"
+                value: "numaflow-topic"
               - name: SUBSCRIPTION_ID
-                value: "subscription-09098ui1"
+                value: "numaflowtest"
               - name: PUBSUB_EMULATOR_HOST
-                value: "gcloud-pubsub.numaflow-system.svc.cluster.local:8681" # For production keep it blank string
+                value: "" # For production keep it blank string
               - name: MAX_EXTENSION_PERIOD  #specifies the maximum period for which the deadline for message acknowledgment may be extended 30s ,30m
                 value: "240s"
+              - name: GOOGLE_APPLICATION_CREDENTIALS
+                value: /var/secrets/google/key.json
+            volumeMounts:
+              - name: google-cloud-key
+                mountPath: /var/secrets/google
+      volumes:
+        - name: google-cloud-key
+          secret:
+            secretName: google-cloud-key
     - name: redis-sink
       sink:
         udsink:

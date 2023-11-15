@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "my-project-1500816644689",
+  "private_key_id": "b20851b2f0f91b1121f62728b4a1d6538ecf66b6",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCmGlad5SBUhk7p\n9lu58jcKK1JlPT1vPirrw4Odaw4bmf95VnG8fkNamG4t+1XXmoluusskRX2NgdrS\n0XhnfwtDcuuwmbTHupNe1HxGDWEFOBNNb30w2DqnxkwGb5Q5rf6nk4na3HKkESIt\nJT6YvVypPA0exUMYGvBEFVLNxZDfVm78A0Zti1uLpdXS9Mj/dFZAEYxtiG7uULSI\nfEDd+kofccSEwwDpsPokk0Yyqy+DBMDnMxuMdK7qOG0J+RkIActDZJdGkTIb5Bsi\nyXX/e9ASc/ZcuSCloSXBjVXRA1o5Yk+F6Ic1RnPP3kF3JBfDAhJHCK06AcFGpjYI\noxP7vWJZAgMBAAECggEAKSmjx3NNpMS377D2oEkPLLz5qU8Y12WPm2eTSUKLd3md\nXwN2IiEkLeJSg6CicFDCuCcgSnfSGmxQvyfb78IDF472K4ibzVdGSBzeQznzjiiM\nWAdF/gHH32X71yh1kim1Tu/4HL2+xzvbvVZagd2Dhgj0s2htLR8X5bdnEslgEohh\nAa35sRmgi0I89FpHDTdJpnMYF8A8FQJBnjo26WxZL+IRESJYYXv/Ve1KsuVtgIN+\ndrqoOVZC7/YepsR2Mh5mqEJQJZBdvpR+Yomc8jDNPgNW8Wj4f6geFR9bLifVRhmA\n+rwE/ytOxZVBxMswTRlxskCChvKXsg2XFxSObT+DdQKBgQDoMksYQ1I9ZTNuUKPY\nhE2h49xckmQUbnzlvgEYI7av+uaD9wiayCwWqeE1AviU6WjCHw/iFxeS3eMDuPWk\n2QPaoZkLDz8DH7tMvsnRWVSxyKQKhI9mvMOzFHzTWmPmHQfa4t7XBG7TlKHVM/Pl\nC+rhoMjLoluL8mKKWwMcJxSEJwKBgQC3IYBkBkN+wsSONm500Nzb5ZkxIp7Apxo1\nljsU/6GNn6VK8CCcc5K3F9Kjdcat3OJUBbRNztsghW/FxAf+eapm31kzGK+uqaeB\noFqBvO8HOwiSmcKj8UXEz5/5zz1nUAbNaG6/EVP+Wfj8LInCcxhH52yuk9Uzwiwa\ncnElLsZ1fwKBgQDgAU0TDjdzxYMVhLRcuF6QtNutbwkf8OuLVH+Hw0SGh74FR7hE\nYqKuBpueYcxhFMCcrgzLqE10wZ01xSUuMLKYJFgaJE48/Ercoh7fWZfsn80p3HLf\nwXHm/Pfjiotfv1gJod8rfjpQ4k4x+hnsOVAS9eNhGLPK0j6gjWb1rPoM9wKBgBgF\nGOYFvEygF0/f69T+oDlngBRlyhTS1ik5Lz6t2O7Ohcuye1SKBDBnu4UdKZYcZsNG\njEO4Yh194w85iyLhqmwb14NQNZrfPc1OzxA9S8zS/WjdKh5+wvvxj7YgbJlkcb/3\ndq8xAqdV/cZ1wQv0NLcZr7OmSEylp0tAv351CCrZAoGBANDqPXA/c/ONwElbkPiB\n6dR3PLQ+jfCPn4Lz+3PlQ6zYfmIVOphBPznuWfHsEli+bpd3CeK/E1IcGwTMwcEe\n/9yXpz84zm5eSyVq6w0WQnx/4zTunG5a8i6BxZxepdhm7IDrN2olS+oULr+7TxgC\n8SZLAWI2FKMqa27iucBlBosn\n-----END PRIVATE KEY-----\n",
+  "client_email": "numaflow-access@my-project-1500816644689.iam.gserviceaccount.com",
+  "client_id": "100759643399178252113",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/numaflow-access%40my-project-1500816644689.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

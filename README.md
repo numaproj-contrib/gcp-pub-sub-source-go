@@ -72,6 +72,47 @@ This guide will walk you through setting up a GCP Pub/Sub source in a Numaflow p
 
 Enable debugging by setting `DEBUG=true` in the GCP Pub/Sub source container's environment variables. For further details, see the [Numaflow Debugging Guide](https://numaflow.numaproj.io/development/debugging/).
 
+## Using with Managed K8s
+If you're using any managed k8 cluster other than GCP, like Amazon EKS , you'll need to manage credentials differently since Google Cloud's automatic workload identity features aren't available. Follow these steps to set up your application:
+
+Create a Google Cloud service account with the necessary roles for Pub/Sub and Cloud Monitoring.
+
+Download the service account JSON key file.
+
+Create a Kubernetes Secret in your EKS cluster with the JSON key file:
+
+
+``kubectl create secret generic google-cloud-key --from-file=key.json=/path/to/service-account-file.json``
+
+Configure your pod to use this secret by mounting it as a volume. Here's an example pod configuration:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+name: my-pod
+spec:
+containers:
+- name: my-container
+  image: my-image
+  env:
+   - name: GOOGLE_APPLICATION_CREDENTIALS
+     value: /var/secrets/google/key.json
+     volumeMounts:
+   - name: google-cloud-key
+     mountPath: /var/secrets/google
+     volumes:
+- name: google-cloud-key
+  secret:
+  secretName: google-cloud-key
+```
+
+#### The GOOGLE_APPLICATION_CREDENTIALS environment variable points to the file where the secret is mounted in the container.
+
+
+Ensure the service account has the necessary permissions to perform operations on Google Cloud resources.
+
+
 ## Additional Resources
 
 For more information, visit the [Numaflow Documentation](https://numaflow.numaproj.io/) and [Google Cloud Pub/Sub Documentation](https://cloud.google.com/pubsub/docs).
