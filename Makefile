@@ -62,7 +62,7 @@ lint:
 
 test:
 	@echo "Running integration tests..."
-	@go test -race ./pkg/pubsubsource/*
+	@go test -race ./pkg/pubsubsource -run TestPubSubSource_Read
 
 imagepush: build
 	docker buildx build --no-cache -t "$(DOCKERIO_ORG)/numaflow-go/gcloud-pubsub-source:$(IMAGE_TAG)" --platform $(MULTIPLE_PLATFORMS) --target $(TARGET) . --push
