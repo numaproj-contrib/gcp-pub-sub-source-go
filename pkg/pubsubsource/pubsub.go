@@ -88,6 +88,7 @@ func (p *PubSubSource) Ack(ctx context.Context, request sourcesdk.AckRequest) {
 func (p *PubSubSource) StartReceiving(ctx context.Context) {
 	go func() {
 		err := p.subscription.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
+			log.Println("Length", len(p.receiveCh))
 			select {
 			case p.receiveCh <- msg:
 			case <-ctx.Done():

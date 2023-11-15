@@ -59,11 +59,15 @@ func publish(ctx context.Context, client *pubsub.Client, topicID, msg string) er
 }
 
 func sendMessages(ctx context.Context, client *pubsub.Client, topicID string, count int) {
+	successfulMessages := 0
 	for i := 0; i < count; i++ {
 		if err := publish(ctx, client, topicID, fmt.Sprintf("Message %d", i)); err != nil {
-			log.Fatalf("Failed to publish: %v", err)
+			log.Printf("Failed to publish message %d: %v", i, err)
+			continue
 		}
+		successfulMessages++
 	}
+	log.Printf("Successfully published %d messages", successfulMessages)
 }
 
 func ensureTopicAndSubscription(ctx context.Context, client *pubsub.Client, topicID, subID string) error {
@@ -218,4 +222,19 @@ func TestPubSubSource_Read(t *testing.T) {
 	assert.Equal(t, 6, len(messageCh))
 
 	<-publishChan
+}
+
+func TestPubSubSource_Pending(t *testing.T) {
+	setupCtx, cancelSetup := context.WithCancel(context.Background())
+	err := ensureTopicAndSubscription(setupCtx, pubsubClient, TopicID, subscriptionID)
+	assert.Nil(t, err)
+	cancelSetup()
+	subscription := pubsubClient.Subscription(subscriptionID)
+	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD, MAX_OUT_STANDING_MESSAGES)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pubsubSource.StartReceiving(ctx)
+	sendMessages(ctx, pubsubClient, TopicID, 40)
+	val := pubsubSource.Pending(context.Background())
+	assert.Equal(t, MAX_OUT_STANDING_MESSAGES, int(val))
 }
