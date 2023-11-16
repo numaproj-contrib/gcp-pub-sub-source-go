@@ -53,7 +53,7 @@ func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), readRequest.TimeOut())
 	defer cancel()
-	for i := 0; i < int(readRequest.Count()) && ctx.Err() == nil; i++ {
+	for i := 0; i < int(readRequest.Count()); i++ {
 		select {
 		case msg := <-p.receiveCh:
 			p.lock.Lock()
