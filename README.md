@@ -14,7 +14,16 @@ This guide will walk you through setting up a GCP Pub/Sub source in a Numaflow p
 
 1. **Create a GCP Pub/Sub Topic and Subscription**: Use the Google Cloud Console or `gcloud` CLI to create a new topic and subscription.
 
-2. **Set Up Environment Variables**: Define environment variables such as `PROJECT_ID`, `TOPIC_ID`, `SUBSCRIPTION_ID`, and `PUBSUB_EMULATOR_HOST` in your Kubernetes deployment. These variables are crucial for configuring the Pub/Sub source within your pipeline.
+2. **Set Up Environment Variables**: Define environment variables such as `PROJECT_ID`, `TOPIC_ID`, `SUBSCRIPTION_ID`, `MAX_EXTENSION_PERIOD` and `PUBSUB_EMULATOR_HOST` in your Kubernetes deployment. These variables are crucial for configuring the Pub/Sub source within your pipeline.
+   PROJECT_ID: This is the unique identifier for your Google Cloud Project. Every resource in Google Cloud belongs to a project. This ID is used by the Pub/Sub client to know which project's Pub/Sub resources it should interact with.
+
+TOPIC_ID: The ID of the Pub/Sub topic from which messages are published. Topics in Pub/Sub are named resources to which messages are sent by publishers.
+
+SUBSCRIPTION_ID: The ID of the Pub/Sub subscription through which messages are consumed. Subscriptions in Pub/Sub represent a named resource mapping to a topic, through which subscribers receive messages published to the topic.
+
+MAX_EXTENSION_PERIOD: This is typically used to set the maximum period for which the Pub/Sub client will automatically extend the acknowledgment deadline for each message. This setting is crucial for handling message processing that might take longer than the default acknowledgment deadline.
+
+PUBSUB_EMULATOR_HOST: This is used when developing and testing applications locally, using the Pub/Sub emulator rather than connecting to the actual Pub/Sub service. This variable should hold the address (host and port) of the running Pub/Sub emulator.For Production Keep it blank.
 
 3. **Deploy a Numaflow Pipeline with GCP Pub/Sub Source**: Use the following Kubernetes manifest template, modifying the environment variables as necessary:
 

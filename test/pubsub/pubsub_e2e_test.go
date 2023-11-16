@@ -1,3 +1,5 @@
+//go:build test
+
 /*
 Copyright 2022 The Numaproj Authors.
 
@@ -33,6 +35,7 @@ const (
 	SUBSCRIPTION_ID = "subscription-09098ui1"
 	PROJECT_ID      = "pubsub-test"
 	TOPIC_ID        = "pubsub-test-topic"
+	PUB_SUB_PORT    = 8681
 )
 
 type GCPPubSubSourceSuite struct {
@@ -118,11 +121,11 @@ func (suite *GCPPubSubSourceSuite) SetupTest() {
 	time.Sleep(time.Minute)
 
 	suite.T().Log("port forwarding gcloud-pubsub service")
-	suite.StartPortForward("gcloud-pubsub-0", 8681)
+	suite.StartPortForward("gcloud-pubsub-0", PUB_SUB_PORT)
 }
 
 func (suite *GCPPubSubSourceSuite) TestPubSubSource() {
-	err := os.Setenv("PUBSUB_EMULATOR_HOST", "localhost:8681")
+	err := os.Setenv("PUBSUB_EMULATOR_HOST", fmt.Sprintf("localhost:%d", PUB_SUB_PORT))
 	assert.Nil(suite.T(), err)
 	var testMessage = "pubsub-go"
 	pubsubclient := createPubSubClient()

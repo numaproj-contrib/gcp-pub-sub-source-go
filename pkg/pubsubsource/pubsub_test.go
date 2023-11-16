@@ -40,7 +40,6 @@ const Project = "pubsub-local-test"
 const subscriptionID = "subscription-09098"
 const MAX_EXTENSION_PERIOD = 240 * time.Second
 const PUB_SUB_EMULATOR_HOST = "localhost:8681"
-const MAX_OUT_STANDING_MESSAGES = 20
 
 var (
 	pubsubClient *pubsub.Client
@@ -105,7 +104,6 @@ func TestMain(m *testing.M) {
 		log.Fatalf("could not connect to docker ;is it running ? %s", err)
 	}
 	pool = p
-
 	// Check if pubsub container is already running
 	containers, err := pool.Client.ListContainers(docker.ListContainersOptions{})
 	if err != nil {
@@ -143,7 +141,6 @@ func TestMain(m *testing.M) {
 			log.Fatalf("could not start resource %s", err)
 		}
 	}
-
 	err = os.Setenv("PUBSUB_EMULATOR_HOST", PUB_SUB_EMULATOR_HOST)
 	if err != nil {
 		log.Fatalf("error -%s", err)
@@ -179,7 +176,7 @@ func TestPubSubSource_Read(t *testing.T) {
 	cancelSetup()
 	messageCh := make(chan sourcer.Message, 20)
 	subscription := pubsubClient.Subscription(subscriptionID)
-	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD, MAX_OUT_STANDING_MESSAGES)
+	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD)
 	ctx, cancel := context.WithCancel(context.Background())
 	publishChan := make(chan struct{})
 	defer cancel()
@@ -187,9 +184,7 @@ func TestPubSubSource_Read(t *testing.T) {
 	go func() {
 		sendMessages(ctx, pubsubClient, TopicID, 100)
 		close(publishChan)
-
 	}()
-
 	pubsubSource.Read(ctx, mocks.ReadRequest{
 		CountValue: 5,
 		Timeout:    20 * time.Second,
@@ -220,21 +215,44 @@ func TestPubSubSource_Read(t *testing.T) {
 		Timeout:    10 * time.Second,
 	}, messageCh)
 	assert.Equal(t, 6, len(messageCh))
-
 	<-publishChan
 }
 
-func TestPubSubSource_Pending(t *testing.T) {
+func TestPubSubSource_PendingMessageEqualsBufferSize(t *testing.T) {
 	setupCtx, cancelSetup := context.WithCancel(context.Background())
 	err := ensureTopicAndSubscription(setupCtx, pubsubClient, TopicID, subscriptionID)
 	assert.Nil(t, err)
 	cancelSetup()
 	subscription := pubsubClient.Subscription(subscriptionID)
-	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD, MAX_OUT_STANDING_MESSAGES)
+	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	pubsubSource.StartReceiving(ctx)
-	sendMessages(ctx, pubsubClient, TopicID, 40)
+	sendMessages(ctx, pubsubClient, TopicID, 1400)
 	val := pubsubSource.Pending(context.Background())
-	assert.Equal(t, MAX_OUT_STANDING_MESSAGES, int(val))
+	assert.Equal(t, MAX_OUT_STANDING_MESSAGES, int(val)) // MAX_OUT_STANDING_MESSAGES is buffer size
+}
+
+func TestPubSubSource_Pending2(t *testing.T) {
+	setupCtx, cancelSetup := context.WithCancel(context.Background())
+	err := ensureTopicAndSubscription(setupCtx, pubsubClient, TopicID, subscriptionID)
+	assert.Nil(t, err)
+	cancelSetup()
+	subscription := pubsubClient.Subscription(subscriptionID)
+	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pubsubSource.StartReceiving(ctx)
+	messageCh := make(chan sourcer.Message, 1000)
+	sendMessages(ctx, pubsubClient, TopicID, 2000)
+	val := pubsubSource.Pending(context.Background())
+	assert.Equal(t, 1000, int(val))
+	pubsubSource.Read(ctx, mocks.ReadRequest{
+		CountValue: 400,
+		Timeout:    10 * time.Second,
+	}, messageCh)
+
+	val = pubsubSource.Pending(context.Background())
+	assert.Equal(t, 600, int(val))
+
 }

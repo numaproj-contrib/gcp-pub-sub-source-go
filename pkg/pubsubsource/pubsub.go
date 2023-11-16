@@ -26,6 +26,8 @@ import (
 	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 )
 
+const MAX_OUT_STANDING_MESSAGES = 1000 //  maximum number of unacknowledged messages that can be held at a given time ib buffer
+
 // PubSubSource represents a source of messages in a publish-subscribe system.
 type PubSubSource struct {
 	client       *pubsub.Client
@@ -35,11 +37,11 @@ type PubSubSource struct {
 	lock         *sync.Mutex
 }
 
-func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription, maxExtensionPeriod time.Duration, maxOutStandingMessages int) *PubSubSource {
+func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription, maxExtensionPeriod time.Duration) *PubSubSource {
 	subscription.ReceiveSettings.MaxExtension = maxExtensionPeriod
-	subscription.ReceiveSettings.MaxOutstandingMessages = maxOutStandingMessages
-	receiveCh := make(chan *pubsub.Message, maxOutStandingMessages)
-	return &PubSubSource{client: client, subscription: subscription, receiveCh: receiveCh, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex)}
+	receiveCh := make(chan *pubsub.Message, MAX_OUT_STANDING_MESSAGES)
+	pubSubSource := &PubSubSource{client: client, subscription: subscription, receiveCh: receiveCh, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex)}
+	return pubSubSource
 }
 
 func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest, messageCh chan<- sourcesdk.Message) {
@@ -54,12 +56,12 @@ func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest
 	for i := 0; i < int(readRequest.Count()) && ctx.Err() == nil; i++ {
 		select {
 		case msg := <-p.receiveCh:
+			p.lock.Lock()
 			messageCh <- sourcesdk.NewMessage(
 				msg.Data,
 				sourcesdk.NewOffset([]byte(msg.ID), "0"),
 				msg.PublishTime,
 			)
-			p.lock.Lock()
 			p.messages[msg.ID] = msg
 			p.lock.Unlock()
 		case <-ctx.Done():
@@ -87,16 +89,14 @@ func (p *PubSubSource) Ack(ctx context.Context, request sourcesdk.AckRequest) {
 
 func (p *PubSubSource) StartReceiving(ctx context.Context) {
 	go func() {
-		err := p.subscription.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
-			log.Println("Length", len(p.receiveCh))
+		if err := p.subscription.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 			select {
 			case p.receiveCh <- msg:
 			case <-ctx.Done():
 				return
 			}
-		})
-		if err != nil {
-			log.Fatalf("error receiving  messages: %v", err)
+		}); err != nil {
+			log.Fatalf("error receiving messages: %v", err)
 		}
 	}()
 }

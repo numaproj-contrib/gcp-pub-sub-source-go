@@ -23,14 +23,13 @@ import (
 	"github.com/numaproj/numaflow-go/pkg/sourcer"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/pubsubsource"
 )
 
 // getSubscription checks if the specified topic and subscription exist.
-// It returns an error if either the topic or the subscription doesn't exist or the subscription object
+// It returns an error if either the topic or the subscription doesn't exist
 func getSubscription(ctx context.Context, client *pubsub.Client, topicID, subID string) (*pubsub.Subscription, error) {
 	topic := client.Topic(topicID)
 	exists, err := topic.Exists(ctx)
@@ -55,12 +54,7 @@ func main() {
 	subscriptionId := os.Getenv("SUBSCRIPTION_ID")
 	topicId := os.Getenv("TOPIC_ID")
 	projectId := os.Getenv("PROJECT_ID")
-	maxOutStandingMessages, err := strconv.Atoi(os.Getenv("MAX_OUT_STANDING_MESSAGES"))
-	if err != nil {
-		log.Fatalf("error creating source, max out standing message is invalid %s", err)
-	}
 	maxExtensionPeriod, err := time.ParseDuration(os.Getenv("MAX_EXTENSION_PERIOD"))
-
 	if err != nil {
 		log.Fatalf("error creating source, max extension period is invalid %s", err)
 	}
@@ -75,11 +69,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("error in getting subscription : %s", err)
 	}
-	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub, maxExtensionPeriod, maxOutStandingMessages)
+	googlePubSubSource := pubsubsource.NewPubSubSource(client, sub, maxExtensionPeriod)
 	googlePubSubSource.StartReceiving(ctx)
 	err = sourcer.NewServer(googlePubSubSource).Start(context.Background())
 	if err != nil {
 		log.Panic("failed to start source server : ", err)
 	}
-
 }
