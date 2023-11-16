@@ -26,7 +26,7 @@ import (
 	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 )
 
-const MAX_OUT_STANDING_MESSAGES = 1000 //  maximum number of unacknowledged messages that can be held at a given time ib buffer
+const MAX_OUT_STANDING_MESSAGES = 1000 //  maximum number of unacknowledged messages that can be held at a given time in buffer
 
 // PubSubSource represents a source of messages in a publish-subscribe system.
 type PubSubSource struct {
