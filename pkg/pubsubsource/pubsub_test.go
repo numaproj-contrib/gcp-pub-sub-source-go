@@ -243,19 +243,20 @@ func TestPubSubSource_PendingMessageCountUpdatesAfterRead(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	pubsubSource.StartReceiving(ctx)
-	//messageCh := make(chan sourcer.Message, 10000)
+	messageCh := make(chan sourcer.Message, 10000)
 	sendMessages(ctx, pubsubClient, TopicID, 900)
+	// `time.Sleep(5 * time.Second)` allows time for async message processing in goroutines.
+	// It's a temporary fix for testing and should not be used in production.
+	time.Sleep(5 * time.Second)
 	val := pubsubSource.Pending(context.Background())
 	assert.Equal(t, 900, int(val))
-	/*
-		pubsubSource.Read(ctx, mocks.ReadRequest{
-			CountValue: 400,
-			Timeout:    10 * time.Second,
-		}, messageCh)
 
-		val = pubsubSource.Pending(context.Background())
-		assert.Equal(t, 500, int(val))
+	pubsubSource.Read(ctx, mocks.ReadRequest{
+		CountValue: 400,
+		Timeout:    10 * time.Second,
+	}, messageCh)
 
-	*/
+	val = pubsubSource.Pending(context.Background())
+	assert.Equal(t, 500, int(val))
 
 }
