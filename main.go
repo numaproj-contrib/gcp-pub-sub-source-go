@@ -17,13 +17,14 @@ limitations under the License.
 package main
 
 import (
-	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
-	"github.com/numaproj/numaflow-go/pkg/sourcer"
 	"log"
 	"os"
 	"time"
+
+	"cloud.google.com/go/pubsub"
+	"github.com/numaproj/numaflow-go/pkg/sourcer"
 
 	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/pubsubsource"
 )

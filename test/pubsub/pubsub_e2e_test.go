@@ -19,16 +19,17 @@ limitations under the License.
 package pubsub
 
 import (
-	"cloud.google.com/go/pubsub"
 	"context"
 	"fmt"
-	"github.com/numaproj-contrib/numaflow-utils-go/testing/fixtures"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	"log"
 	"os"
 	"testing"
 	"time"
+
+	"cloud.google.com/go/pubsub"
+	"github.com/numaproj-contrib/numaflow-utils-go/testing/fixtures"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 const (
