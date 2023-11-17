@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: gcloud-pubsub
+  name: gcloud-pubsub
+spec:
+  ports:
+    - port: 8681
+      protocol: TCP
+      targetPort: 8681
+  selector:
+    app: gcloud-pubsub
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: gcloud-pubsub
+  name: gcloud-pubsub
+spec:
+  selector:
+    matchLabels:
+      app: gcloud-pubsub
+  serviceName: gcloud-pubsub
+  template:
+    metadata:
+      labels:
+        app: gcloud-pubsub
+    spec:
+      containers:
+        - name: gcloud-pubsub
+          image: thekevjames/gcloud-pubsub-emulator
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /
+              port: 8681
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 10
+          ports:
+            - containerPort: 8681
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /
+              port: 8681  # Adjusted to match the container port
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 10
