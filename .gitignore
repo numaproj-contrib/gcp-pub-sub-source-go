@@ -29,5 +29,3 @@ go.work
 /pkg/pubsubsource/client.json
 pkg/pubsubsource/client.json
 ./pkg/pubsubsource/client.json
-./script.sh
-/script.sh
