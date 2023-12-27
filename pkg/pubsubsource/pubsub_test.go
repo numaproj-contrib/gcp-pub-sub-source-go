@@ -35,11 +35,11 @@ import (
 	"github.com/numaproj-contrib/gcp-pub-sub-source-go/pkg/mocks"
 )
 
-const TopicID = "pubsub-test"
-const Project = "pubsub-local-test"
+const topicID = "pubsub-test"
+const project = "pubsub-local-test"
 const subscriptionID = "subscription-09098"
-const MAX_EXTENSION_PERIOD = 240 * time.Second
-const PUB_SUB_EMULATOR_HOST = "localhost:8681"
+const maxExtensionPeriod = 240 * time.Second
+const pubSubEmulatorHost = "localhost:8681"
 
 var (
 	pubsubClient *pubsub.Client
@@ -141,13 +141,13 @@ func TestMain(m *testing.M) {
 			log.Fatalf("could not start resource %s", err)
 		}
 	}
-	err = os.Setenv("PUBSUB_EMULATOR_HOST", PUB_SUB_EMULATOR_HOST)
+	err = os.Setenv("PUBSUB_EMULATOR_HOST", pubSubEmulatorHost)
 	if err != nil {
 		log.Fatalf("error -%s", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := pool.Retry(func() error {
-		pubsubClient, err = pubsub.NewClient(ctx, Project)
+		pubsubClient, err = pubsub.NewClient(ctx, project)
 		if err != nil {
 			log.Fatalf("Failed to create client: %v", err)
 		}
@@ -171,18 +171,18 @@ func TestMain(m *testing.M) {
 
 func TestPubSubSource_Read(t *testing.T) {
 	setupCtx, cancelSetup := context.WithCancel(context.Background())
-	err := ensureTopicAndSubscription(setupCtx, pubsubClient, TopicID, subscriptionID)
+	err := ensureTopicAndSubscription(setupCtx, pubsubClient, topicID, subscriptionID)
 	assert.Nil(t, err)
 	cancelSetup()
 	messageCh := make(chan sourcer.Message, 20)
 	subscription := pubsubClient.Subscription(subscriptionID)
-	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD)
+	pubsubSource := NewPubSubSource(pubsubClient, subscription, maxExtensionPeriod)
 	ctx, cancel := context.WithCancel(context.Background())
 	publishChan := make(chan struct{})
 	defer cancel()
 	pubsubSource.StartReceiving(ctx)
 	go func() {
-		sendMessages(ctx, pubsubClient, TopicID, 100)
+		sendMessages(ctx, pubsubClient, topicID, 100)
 		close(publishChan)
 	}()
 	pubsubSource.Read(ctx, mocks.ReadRequest{
@@ -220,31 +220,31 @@ func TestPubSubSource_Read(t *testing.T) {
 
 func TestPubSubSource_PendingMessageCountCannotExceedBufferSize(t *testing.T) {
 	setupCtx, cancelSetup := context.WithCancel(context.Background())
-	err := ensureTopicAndSubscription(setupCtx, pubsubClient, TopicID, subscriptionID)
+	err := ensureTopicAndSubscription(setupCtx, pubsubClient, topicID, subscriptionID)
 	assert.Nil(t, err)
 	cancelSetup()
 	subscription := pubsubClient.Subscription(subscriptionID)
-	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD)
+	pubsubSource := NewPubSubSource(pubsubClient, subscription, maxExtensionPeriod)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	pubsubSource.StartReceiving(ctx)
-	sendMessages(ctx, pubsubClient, TopicID, MAX_OUT_STANDING_MESSAGES+1)
+	sendMessages(ctx, pubsubClient, topicID, maxOutStandingMessages+1)
 	val := pubsubSource.Pending(context.Background())
-	assert.Equal(t, MAX_OUT_STANDING_MESSAGES, int(val)) // MAX_OUT_STANDING_MESSAGES is buffer size
+	assert.Equal(t, maxOutStandingMessages, int(val)) // maxOutStandingMessages is buffer size
 }
 
 func TestPubSubSource_PendingMessageCountUpdatesAfterRead(t *testing.T) {
 	setupCtx, cancelSetup := context.WithCancel(context.Background())
-	err := ensureTopicAndSubscription(setupCtx, pubsubClient, TopicID, subscriptionID)
+	err := ensureTopicAndSubscription(setupCtx, pubsubClient, topicID, subscriptionID)
 	assert.Nil(t, err)
 	cancelSetup()
 	subscription := pubsubClient.Subscription(subscriptionID)
-	pubsubSource := NewPubSubSource(pubsubClient, subscription, MAX_EXTENSION_PERIOD)
+	pubsubSource := NewPubSubSource(pubsubClient, subscription, maxExtensionPeriod)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	pubsubSource.StartReceiving(ctx)
 	messageCh := make(chan sourcer.Message, 10000)
-	sendMessages(ctx, pubsubClient, TopicID, 900)
+	sendMessages(ctx, pubsubClient, topicID, 900)
 	// `time.Sleep(5 * time.Second)` allows time for async message processing in goroutines.
 	// It's a temporary fix for testing and should not be used in production.
 	time.Sleep(5 * time.Second)

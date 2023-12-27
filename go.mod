@@ -3,15 +3,12 @@ module github.com/numaproj-contrib/gcp-pub-sub-source-go
 go 1.21.3
 
 require (
-	cloud.google.com/go/monitoring v1.16.3
 	cloud.google.com/go/pubsub v1.33.0
-	github.com/golang/protobuf v1.5.3
-	github.com/numaproj-contrib/numaflow-utils-go v0.0.4
-	github.com/numaproj/numaflow-go v0.5.2
+	github.com/numaproj-contrib/numaflow-utils-go v0.0.8
+	github.com/numaproj/numaflow-go v0.6.0
 	github.com/ory/dockertest/v3 v3.10.0
 	github.com/redis/go-redis/v9 v9.0.3
 	github.com/stretchr/testify v1.8.4
-	google.golang.org/api v0.149.0
 )
 
 require (
@@ -50,6 +47,7 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
@@ -127,6 +125,7 @@ require (
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.8.0 // indirect
+	google.golang.org/api v0.128.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20231016165738-49dd2c1f3d0b // indirect
