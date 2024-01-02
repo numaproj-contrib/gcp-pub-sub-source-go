@@ -26,7 +26,7 @@ import (
 	sourcesdk "github.com/numaproj/numaflow-go/pkg/sourcer"
 )
 
-const MAX_OUT_STANDING_MESSAGES = 1000 //  maximum number of unacknowledged messages that can be held at a given time in buffer
+const maxOutStandingMessages = 1000 //  maximum number of unacknowledged messages that can be held at a given time in buffer
 
 // PubSubSource represents a source of messages in a publish-subscribe system.
 type PubSubSource struct {
@@ -39,7 +39,7 @@ type PubSubSource struct {
 
 func NewPubSubSource(client *pubsub.Client, subscription *pubsub.Subscription, maxExtensionPeriod time.Duration) *PubSubSource {
 	subscription.ReceiveSettings.MaxExtension = maxExtensionPeriod
-	receiveCh := make(chan *pubsub.Message, MAX_OUT_STANDING_MESSAGES)
+	receiveCh := make(chan *pubsub.Message, maxOutStandingMessages)
 	pubSubSource := &PubSubSource{client: client, subscription: subscription, receiveCh: receiveCh, messages: make(map[string]*pubsub.Message), lock: new(sync.Mutex)}
 	return pubSubSource
 }
@@ -59,7 +59,7 @@ func (p *PubSubSource) Read(_ context.Context, readRequest sourcesdk.ReadRequest
 			p.lock.Lock()
 			messageCh <- sourcesdk.NewMessage(
 				msg.Data,
-				sourcesdk.NewOffset([]byte(msg.ID), "0"),
+				sourcesdk.NewOffset([]byte(msg.ID), 0),
 				msg.PublishTime,
 			)
 			p.messages[msg.ID] = msg
@@ -85,6 +85,10 @@ func (p *PubSubSource) Ack(ctx context.Context, request sourcesdk.AckRequest) {
 			p.lock.Unlock()
 		}
 	}
+}
+
+func (p *PubSubSource) Partitions(_ context.Context) []int32 {
+	return sourcesdk.DefaultPartitions()
 }
 
 func (p *PubSubSource) StartReceiving(ctx context.Context) {

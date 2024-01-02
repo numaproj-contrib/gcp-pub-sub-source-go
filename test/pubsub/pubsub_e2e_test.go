@@ -117,10 +117,8 @@ func (suite *GCPPubSubSourceSuite) SetupTest() {
 	suite.Given().When().Exec("sh", []string{"-c", gcloudPubSubCreateCmd}, fixtures.OutputRegexp("service/gcloud-pubsub created"))
 	gcloudPubSubLabelSelector := fmt.Sprintf("app=%s", "gcloud-pubsub")
 	suite.Given().When().WaitForStatefulSetReady(gcloudPubSubLabelSelector)
+	suite.Given().When().WaitForPodReady("gcloud-pubsub-0", gcloudPubSubLabelSelector)
 	suite.T().Log("gcloud-pubsub resources are ready")
-	//delay to make system ready in CI
-	time.Sleep(time.Minute)
-
 	suite.T().Log("port forwarding gcloud-pubsub service")
 	suite.StartPortForward("gcloud-pubsub-0", PUB_SUB_PORT)
 }
